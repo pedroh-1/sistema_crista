@@ -11,7 +11,7 @@ quando entra na Fase 1 ou 2, ou a fase em que entra depois.
   PostgreSQL no futuro.
 - Colunas comuns: `criado_em`, `criado_por`. Os eventos têm também `registrado_em`
   (hora do aparelho), `recebido_em` (hora do servidor), `status`
-  (`valido` | `pendente_revisao`) e `id_evento_corrigido` (doc 05).
+  (`valido` | `pendente_revisao`). A correção é um registro em `producao.estorno` (doc 05).
 - Valores em dinheiro: `numeric(14,2)`. Pesos: gramas como inteiro, ou kg como `numeric(12,3)`.
 - Campos derivados (os que têm "/" no diagrama) **não** são gravados: são calculados por
   `libs/domain`. A exceção é o resultado consolidado do encerramento, que é congelado.

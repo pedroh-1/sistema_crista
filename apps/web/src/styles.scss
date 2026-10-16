@@ -9,6 +9,13 @@
   --perigo: #a33a2c;
   --sucesso: #2f6b3a;
   --raio: 8px;
+
+  /* Séries dos gráficos: ordem fixa, validada para daltonismo (skill dataviz).
+     Cada lote recebe um slot e o mantém enquanto estiver no painel. */
+  --serie-1: #2a78d6;
+  --serie-2: #eb6834;
+  --serie-3: #1baf7a;
+  --serie-4: #eda100;
 }
 
 * {
@@ -218,4 +225,21 @@ button,
     background: #f1e9e7;
     color: var(--perigo);
   }
+}
+
+.situacao-meta {
+  &.abaixo {
+    color: var(--perigo);
+  }
+  &.dentro {
+    color: var(--sucesso);
+  }
+  &.acima {
+    color: #8a6100;
+  }
+}
+
+.alerta.aviso {
+  background: #fff4dc;
+  color: #6b4b00;
 }

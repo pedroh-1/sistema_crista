@@ -13,6 +13,11 @@ export class FazendaAtual {
   readonly galpoes = signal<Galpao[]>([]);
   readonly url = computed(() => `/api/fazendas/${this.fazenda()?.id}`);
 
+  /** Link absoluto dentro da fazenda, ex.: link('lotes', id). */
+  link(...partes: string[]): string[] {
+    return ['/fazendas', this.fazenda()?.id ?? '', ...partes];
+  }
+
   async carregar(id: string): Promise<void> {
     const [fazenda, galpoes] = await Promise.all([
       firstValueFrom(this.http.get<Fazenda>(`/api/fazendas/${id}`)),

@@ -1,57 +1,18 @@
-import { INestApplication } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
-import request from 'supertest';
-import { AppModule } from '../src/app/app.module';
-import { EmailService, Mensagem } from '../src/email/email.service';
-import { PrismaService } from '../src/prisma/prisma.service';
+import { iniciarApi } from './apoio';
 
 /** Fluxos da Fase 1 (UC01 a UC04) contra um banco PostgreSQL real. */
 describe('Fase 1: conta, fazenda, galpão e vínculo', () => {
-  let app: INestApplication;
-  let prisma: PrismaService;
-  const emails: Mensagem[] = [];
-
-  const api = () => request(app.getHttpServer());
-  const tokenDoUltimoEmail = (para: string) => {
-    const msg = [...emails].reverse().find((m) => m.para === para);
-    const token = msg?.texto.match(/token=([\w-]+)/)?.[1];
-    if (!token) throw new Error(`Nenhum link enviado para ${para}`);
-    return token;
-  };
-
-  /** Cadastra, confirma o e-mail e devolve o token de acesso. */
-  async function criarUsuario(email: string, nome = 'Usuário Teste') {
-    await api()
-      .post('/api/auth/cadastro')
-      .send({ nome, email, senha: 'galinha123', aceiteTermos: true })
-      .expect(201);
-    await api()
-      .post('/api/auth/verificar-email')
-      .send({ token: tokenDoUltimoEmail(email) })
-      .expect(204);
-    const login = await api()
-      .post('/api/auth/login')
-      .send({ email, senha: 'galinha123' })
-      .expect(200);
-    return login.body.accessToken as string;
-  }
+  let t: Awaited<ReturnType<typeof iniciarApi>>;
+  const api = () => t.api();
+  const tokenDoUltimoEmail = (para: string) => t.tokenDoUltimoEmail(para);
+  const criarUsuario = (email: string, nome?: string) =>
+    t.criarUsuario(email, nome);
 
   beforeAll(async () => {
-    const modulo = await Test.createTestingModule({ imports: [AppModule] })
-      .overrideProvider(EmailService)
-      .useValue({ enviar: async (m: Mensagem) => void emails.push(m) })
-      .compile();
-    app = modulo.createNestApplication();
-    app.setGlobalPrefix('api');
-    await app.init();
-    prisma = app.get(PrismaService);
-    await prisma.$executeRawUnsafe(
-      'TRUNCATE conta.usuario, conta.aceite_termos, conta.token_verificacao, fazenda.fazenda, fazenda.galpao, ' +
-        'fazenda.vinculo_usuario_fazenda, fazenda.vinculo_galpao, auditoria.evento_auditoria CASCADE',
-    );
+    t = await iniciarApi();
   });
 
-  afterAll(() => app.close());
+  afterAll(() => t.app.close());
 
   it('health-check é público', () =>
     api().get('/api/health').expect(200, { status: 'ok', banco: 'ok' }));
@@ -334,7 +295,7 @@ describe('Fase 1: conta, fazenda, galpão e vínculo', () => {
     });
 
     it('registra auditoria e não deixa alterá-la', async () => {
-      const eventos = await prisma.eventoAuditoria.findMany({
+      const eventos = await t.prisma.eventoAuditoria.findMany({
         where: { fazendaId },
         orderBy: { registradoEm: 'asc' },
       });
@@ -348,7 +309,7 @@ describe('Fase 1: conta, fazenda, galpão e vínculo', () => {
         ]),
       );
       await expect(
-        prisma.eventoAuditoria.deleteMany({ where: { fazendaId } }),
+        t.prisma.eventoAuditoria.deleteMany({ where: { fazendaId } }),
       ).rejects.toThrow();
     });
   });

@@ -10,9 +10,10 @@ export function hojeISO(
   return new Intl.DateTimeFormat('en-CA', { timeZone: fuso }).format(agora);
 }
 
-const dataISO = z.iso.date({ error: 'Data inválida (use AAAA-MM-DD)' });
-const texto = (min: number, max: number) => z.string().trim().min(min).max(max);
-const textoOpcional = (max: number) =>
+export const dataISO = z.iso.date({ error: 'Data inválida (use AAAA-MM-DD)' });
+export const texto = (min: number, max: number) =>
+  z.string().trim().min(min).max(max);
+export const textoOpcional = (max: number) =>
   z
     .string()
     .trim()

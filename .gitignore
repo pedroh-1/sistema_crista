@@ -57,3 +57,4 @@ vitest.config.*.timestamp*
 # Ambiente e código gerado
 .env
 apps/api/src/generated
+armazenamento/

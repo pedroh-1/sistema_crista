@@ -31,3 +31,15 @@ export function mensagemErro(erro: unknown): string {
   }
   return 'Algo deu errado. Tente de novo.';
 }
+
+/**
+ * A API responde 409 com `codigo` quando a operação pode seguir com a
+ * confirmação do usuário (densidade acima da capacidade, revisão de pesagem).
+ * Pergunta ao usuário e devolve true se ele confirmou.
+ */
+export function confirmouAposAviso(erro: unknown): boolean {
+  if (!(erro instanceof HttpErrorResponse) || erro.status !== 409) return false;
+  const corpo = erro.error as { codigo?: string; message?: string } | null;
+  if (!corpo?.codigo) return false;
+  return confirm(corpo.message ?? 'Confirma a operação?');
+}

@@ -43,6 +43,11 @@ até a fazenda cadastrar uma curva própria (**proposta**, depois do MVP).
    passar de 0,3% (atenção) ou 0,5% (crítico) a partir da 2ª semana. Na 1ª semana, usar o dobro.
    **Esses números são suposições** para a equipe validar com o veterinário e com produtores.
 
-Até a transcrição ficar pronta, o seed de desenvolvimento usa uma curva sintética marcada
-com `fonte = 'sintetico'`. A interface mostra o aviso "curva de teste" e essa curva não deve
-ir para produção.
+Até a transcrição ficar pronta, a migration `fase4_custos_curva` carrega uma curva
+**sintética** (versão `teste-1`, `fonte = 'sintetico'`) para Cobb 500, Ross 308 e Hubbard,
+lote misto, de 0 a 56 dias. Ela não vem dos manuais. A interface mostra o aviso
+"curva de teste" sempre que ela é usada.
+
+Para trocar pelas curvas oficiais, crie uma nova migration que insira as linhas com outra
+`versao` (por exemplo `cobb500-2022`). O sistema usa sempre a versão mais recente de cada
+linhagem e sexagem; sem curva do sexo do lote, usa a de lote misto.

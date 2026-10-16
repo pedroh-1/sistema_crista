@@ -18,9 +18,10 @@ dois registros se perderia ou ficaria em conflito.
    "baixa do dia" que o UC07 mostra é a soma desses eventos. A regra "uma baixa por data"
    deixa de existir; no lugar dela, o app avisa quando já existe lançamento no dia
    ("já há 35 mortes registradas hoje por Fulano; deseja somar mais?").
-3. **Correção é um novo evento.** Para corrigir um lançamento errado, registra-se um evento
-   de `ajuste` que aponta para o original (`id_evento_corrigido`), com motivo obrigatório. O
-   original continua no histórico; os indicadores consideram os dois.
+3. **Correção é um estorno.** Para corrigir um lançamento errado, registra-se um estorno
+   (tabela `producao.estorno`) que aponta para o original, com motivo obrigatório, e depois
+   lança-se o valor certo. O original continua no histórico, marcado como estornado, e sai
+   dos indicadores. O banco recusa `UPDATE` e `DELETE` nas tabelas de eventos.
 4. **O cliente gera o ID (UUID v7).** Reenviar o mesmo evento não o duplica: o servidor
    responde "já recebido".
 5. **O servidor valida de novo.** Se um evento offline quebrar uma regra (por exemplo, as

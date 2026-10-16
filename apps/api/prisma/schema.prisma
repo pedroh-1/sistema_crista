@@ -9,7 +9,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  schemas  = ["conta", "fazenda", "auditoria"]
+  schemas  = ["conta", "fazenda", "producao", "sanidade", "custos", "referencia", "arquivo", "auditoria"]
 }
 
 // ---------- conta ----------
@@ -135,6 +135,7 @@ model Fazenda {
 
   galpoes  Galpao[]
   vinculos Vinculo[]
+  lotes    Lote[]
 
   @@map("fazenda")
   @@schema("fazenda")
@@ -152,6 +153,7 @@ model Galpao {
 
   fazenda  Fazenda         @relation(fields: [fazendaId], references: [id])
   vinculos VinculoGalpao[]
+  lotes    Lote[]
 
   @@unique([fazendaId, identificacao])
   @@map("galpao")
@@ -197,6 +199,356 @@ model VinculoGalpao {
   @@id([vinculoId, galpaoId])
   @@map("vinculo_galpao")
   @@schema("fazenda")
+}
+
+// ---------- producao ----------
+// Os registros do ciclo são eventos: só aceitam inserção, e a correção é um
+// estorno (docs/05-sincronizacao.md). Campos derivados não são gravados.
+
+enum Linhagem {
+  cobb500
+  ross308
+  hubbard
+  outra
+
+  @@schema("producao")
+}
+
+enum Sexagem {
+  misto
+  macho
+  femea
+
+  @@schema("producao")
+}
+
+enum SituacaoLote {
+  em_andamento
+  encerrado
+  cancelado
+
+  @@schema("producao")
+}
+
+// pendente_revisao: chegou do app offline quebrando uma regra (Fase 3)
+enum StatusEvento {
+  valido
+  pendente_revisao
+
+  @@schema("producao")
+}
+
+enum TipoMovimentoRacao {
+  entrada
+  estoque_restante
+
+  @@schema("producao")
+}
+
+model Lote {
+  id                      String       @id @default(uuid(7)) @db.Uuid
+  fazendaId               String       @map("id_fazenda") @db.Uuid
+  galpaoId                String       @map("id_galpao") @db.Uuid
+  codigo                  String
+  linhagem                Linhagem
+  sexagem                 Sexagem      @default(misto)
+  origem                  String?
+  dataAlojamento          DateTime     @map("data_alojamento") @db.Date
+  idadeInicialDias        Int          @default(0) @map("idade_inicial_dias")
+  pesoPintoG              Decimal?     @map("peso_pinto_g") @db.Decimal(6, 2)
+  custoPinto              Decimal?     @map("custo_pinto") @db.Decimal(10, 4)
+  quantidadePrevista      Int          @map("quantidade_prevista")
+  precoReferenciaKg       Decimal?     @map("preco_referencia_kg") @db.Decimal(10, 4)
+  situacao                SituacaoLote @default(em_andamento)
+  confirmouDensidadePorId String?      @map("confirmou_densidade_por") @db.Uuid
+  criadoPorId             String       @map("criado_por") @db.Uuid
+  criadoEm                DateTime     @default(now()) @map("criado_em")
+
+  fazenda     Fazenda               @relation(fields: [fazendaId], references: [id])
+  galpao      Galpao                @relation(fields: [galpaoId], references: [id])
+  alojamento  Alojamento?
+  baixas      EventoBaixa[]
+  pesagens    Pesagem[]
+  movimentos  MovimentoRacao[]
+  ocorrencias OcorrenciaSanitaria[]
+  rateios     DespesaRateio[]
+
+  @@unique([fazendaId, codigo])
+  @@index([galpaoId])
+  @@map("lote")
+  @@schema("producao")
+}
+
+// Um por lote. É cadastro (editável com auditoria), não evento.
+model Alojamento {
+  id                       String   @id @default(uuid(7)) @db.Uuid
+  fazendaId                String   @map("id_fazenda") @db.Uuid
+  loteId                   String   @unique @map("id_lote") @db.Uuid
+  data                     DateTime @db.Date
+  avesRecebidas            Int      @map("aves_recebidas")
+  mortasTransporte         Int      @default(0) @map("mortas_transporte")
+  justificativaDivergencia String?  @map("justificativa_divergencia")
+  confirmouDensidadePorId  String?  @map("confirmou_densidade_por") @db.Uuid
+  criadoPorId              String   @map("criado_por") @db.Uuid
+  criadoEm                 DateTime @default(now()) @map("criado_em")
+
+  lote Lote @relation(fields: [loteId], references: [id])
+
+  @@map("alojamento")
+  @@schema("producao")
+}
+
+model EventoBaixa {
+  id            String       @id @default(uuid(7)) @db.Uuid
+  fazendaId     String       @map("id_fazenda") @db.Uuid
+  loteId        String       @map("id_lote") @db.Uuid
+  data          DateTime     @db.Date
+  mortes        Int
+  descartes     Int          @default(0)
+  causaProvavel String?      @map("causa_provavel")
+  status        StatusEvento @default(valido)
+  registradoEm  DateTime     @default(now()) @map("registrado_em")
+  recebidoEm    DateTime     @default(now()) @map("recebido_em")
+  criadoPorId   String       @map("criado_por") @db.Uuid
+
+  lote Lote @relation(fields: [loteId], references: [id])
+
+  @@index([loteId, data])
+  @@map("evento_baixa")
+  @@schema("producao")
+}
+
+model Pesagem {
+  id                String       @id @default(uuid(7)) @db.Uuid
+  fazendaId         String       @map("id_fazenda") @db.Uuid
+  loteId            String       @map("id_lote") @db.Uuid
+  data              DateTime     @db.Date
+  avesPesadas       Int          @map("aves_pesadas")
+  pesoTotalG        Decimal      @map("peso_total_g") @db.Decimal(12, 2)
+  pontoColeta       String?      @map("ponto_coleta")
+  revisaoConfirmada Boolean      @default(false) @map("revisao_confirmada")
+  status            StatusEvento @default(valido)
+  registradoEm      DateTime     @default(now()) @map("registrado_em")
+  recebidoEm        DateTime     @default(now()) @map("recebido_em")
+  criadoPorId       String       @map("criado_por") @db.Uuid
+
+  lote  Lote                @relation(fields: [loteId], references: [id])
+  pesos PesagemIndividual[]
+
+  @@index([loteId, data])
+  @@map("pesagem")
+  @@schema("producao")
+}
+
+model PesagemIndividual {
+  id        String  @id @default(uuid(7)) @db.Uuid
+  pesagemId String  @map("id_pesagem") @db.Uuid
+  pesoG     Decimal @map("peso_g") @db.Decimal(8, 2)
+
+  pesagem Pesagem @relation(fields: [pesagemId], references: [id])
+
+  @@index([pesagemId])
+  @@map("pesagem_individual")
+  @@schema("producao")
+}
+
+model MovimentoRacao {
+  id           String             @id @default(uuid(7)) @db.Uuid
+  fazendaId    String             @map("id_fazenda") @db.Uuid
+  loteId       String             @map("id_lote") @db.Uuid
+  data         DateTime           @db.Date
+  tipo         TipoMovimentoRacao
+  quantidadeKg Decimal            @map("quantidade_kg") @db.Decimal(12, 3)
+  fornecedor   String?
+  notaFiscal   String?            @map("nota_fiscal")
+  // Entrega com valor gera a despesa de ração junto (UC12)
+  despesaId    String?            @map("id_despesa") @db.Uuid
+  status       StatusEvento       @default(valido)
+  registradoEm DateTime           @default(now()) @map("registrado_em")
+  recebidoEm   DateTime           @default(now()) @map("recebido_em")
+  criadoPorId  String             @map("criado_por") @db.Uuid
+
+  lote Lote @relation(fields: [loteId], references: [id])
+
+  @@index([loteId, data])
+  @@map("movimento_racao")
+  @@schema("producao")
+}
+
+// Cancela um evento (baixa, pesagem, ração ou ocorrência) sem apagá-lo.
+model Estorno {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  fazendaId   String   @map("id_fazenda") @db.Uuid
+  entidade    String
+  idEvento    String   @unique @map("id_evento") @db.Uuid
+  motivo      String
+  criadoPorId String   @map("criado_por") @db.Uuid
+  criadoEm    DateTime @default(now()) @map("criado_em")
+
+  @@map("estorno")
+  @@schema("producao")
+}
+
+// ---------- sanidade ----------
+
+enum TipoOcorrencia {
+  doenca
+  vacinacao
+  medicacao
+  anomalia
+  inspecao
+
+  @@schema("sanidade")
+}
+
+enum ViaAplicacao {
+  agua
+  racao
+  spray
+  ocular
+  injetavel
+  outra
+
+  @@schema("sanidade")
+}
+
+model OcorrenciaSanitaria {
+  id           String         @id @default(uuid(7)) @db.Uuid
+  fazendaId    String         @map("id_fazenda") @db.Uuid
+  loteId       String         @map("id_lote") @db.Uuid
+  data         DateTime       @db.Date
+  tipo         TipoOcorrencia
+  descricao    String
+  produto      String?
+  dose         String?
+  via          ViaAplicacao?
+  loteProduto  String?        @map("lote_produto")
+  carenciaDias Int?           @map("carencia_dias")
+  status       StatusEvento   @default(valido)
+  registradoEm DateTime       @default(now()) @map("registrado_em")
+  recebidoEm   DateTime       @default(now()) @map("recebido_em")
+  criadoPorId  String         @map("criado_por") @db.Uuid
+
+  lote Lote @relation(fields: [loteId], references: [id])
+
+  @@index([loteId, data])
+  @@map("ocorrencia_sanitaria")
+  @@schema("sanidade")
+}
+
+// ---------- custos ----------
+
+enum CategoriaDespesa {
+  racao
+  medicamentos
+  energia
+  gas
+  mao_de_obra
+  cama
+  manutencao
+  transporte
+  outros
+
+  @@schema("custos")
+}
+
+enum CriterioRateio {
+  aves_alojadas
+  consumo_racao
+  percentual
+
+  @@schema("custos")
+}
+
+enum OrigemDespesa {
+  manual
+  racao
+  manutencao
+
+  @@schema("custos")
+}
+
+// Evento: só aceita inserção; a correção é um estorno.
+model Despesa {
+  id                    String           @id @default(uuid(7)) @db.Uuid
+  fazendaId             String           @map("id_fazenda") @db.Uuid
+  data                  DateTime         @db.Date
+  categoria             CategoriaDespesa
+  descricao             String
+  valor                 Decimal          @db.Decimal(14, 2)
+  fornecedor            String?
+  numeroNota            String?          @map("numero_nota")
+  criterioRateio        CriterioRateio?  @map("criterio_rateio")
+  origem                OrigemDespesa    @default(manual)
+  duplicidadeConfirmada Boolean          @default(false) @map("duplicidade_confirmada")
+  status                StatusEvento     @default(valido)
+  registradoEm          DateTime         @default(now()) @map("registrado_em")
+  recebidoEm            DateTime         @default(now()) @map("recebido_em")
+  criadoPorId           String           @map("criado_por") @db.Uuid
+
+  rateios DespesaRateio[]
+
+  @@index([fazendaId, data])
+  @@index([fazendaId, numeroNota])
+  @@map("despesa")
+  @@schema("custos")
+}
+
+// Parcela da despesa em cada lote. Sem parcelas, a despesa é da fazenda.
+model DespesaRateio {
+  id         String  @id @default(uuid(7)) @db.Uuid
+  despesaId  String  @map("id_despesa") @db.Uuid
+  loteId     String  @map("id_lote") @db.Uuid
+  percentual Decimal @db.Decimal(7, 4)
+  valor      Decimal @db.Decimal(14, 2)
+
+  despesa Despesa @relation(fields: [despesaId], references: [id])
+  lote    Lote    @relation(fields: [loteId], references: [id])
+
+  @@index([loteId])
+  @@index([despesaId])
+  @@map("despesa_rateio")
+  @@schema("custos")
+}
+
+// ---------- referencia ----------
+
+// Curva de desempenho por linhagem (doc 06). fonte = 'sintetico' é curva de teste.
+model CurvaReferencia {
+  id                String   @id @default(uuid(7)) @db.Uuid
+  linhagem          Linhagem
+  sexo              Sexagem
+  idadeDias         Int      @map("idade_dias")
+  pesoG             Decimal  @map("peso_g") @db.Decimal(8, 2)
+  consumoAcumG      Decimal? @map("consumo_acum_g") @db.Decimal(10, 2)
+  mortalidadeDiaPct Decimal? @map("mortalidade_dia_pct") @db.Decimal(6, 4)
+  fonte             String
+  versao            String
+
+  @@unique([linhagem, sexo, idadeDias, versao])
+  @@map("curva_referencia")
+  @@schema("referencia")
+}
+
+// ---------- arquivo ----------
+
+// Anexo de qualquer registro (RNF08: jpg, png ou pdf, até 10 MB).
+model Anexo {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  fazendaId   String   @map("id_fazenda") @db.Uuid
+  entidade    String
+  idEntidade  String   @map("id_entidade") @db.Uuid
+  chave       String   @unique
+  nome        String
+  mime        String
+  tamanho     Int
+  sha256      String
+  criadoPorId String   @map("criado_por") @db.Uuid
+  criadoEm    DateTime @default(now()) @map("criado_em")
+
+  @@index([entidade, idEntidade])
+  @@map("anexo")
+  @@schema("arquivo")
 }
 
 // ---------- auditoria ----------

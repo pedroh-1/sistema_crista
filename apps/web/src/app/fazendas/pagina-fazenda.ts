@@ -25,6 +25,13 @@ import { FazendaAtual } from './fazenda-atual';
           </div>
         </div>
         <nav class="abas">
+          <a routerLink="lotes" routerLinkActive="ativa">Lotes</a>
+          @if (atual.pode('painel.filtrar')) {
+            <a routerLink="painel" routerLinkActive="ativa">Painel</a>
+          }
+          @if (atual.pode('financeiro.ver')) {
+            <a routerLink="despesas" routerLinkActive="ativa">Despesas</a>
+          }
           <a routerLink="galpoes" routerLinkActive="ativa">Galpões</a>
           @if (atual.pode('vinculo.gerenciar')) {
             <a routerLink="equipe" routerLinkActive="ativa">Equipe</a>
@@ -40,6 +47,7 @@ import { FazendaAtual } from './fazenda-atual';
       gap: 0.25rem;
       border-bottom: 1px solid var(--borda);
       margin-bottom: 1rem;
+      overflow-x: auto;
     }
     .abas a {
       padding: 0.5rem 0.9rem;

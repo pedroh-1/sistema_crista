@@ -10,23 +10,49 @@
 
 ## Fases
 
-| Fase | Entrega                                                                                | UCs              | Marco |
-| ---- | -------------------------------------------------------------------------------------- | ---------------- | ----- |
-| 0    | Documentos desta pasta e esqueleto do repositório                                      | —                | 1     |
-| 1    | Conta, fazenda, galpão, vínculo e convite, permissões, auditoria (**entregue**)        | UC01–UC04        | 1     |
-| 2    | Lote, alojamento, baixas, pesagem, sanidade e carência, entrada de ração, anexos (web) | UC05–UC10        | 1     |
-| 4    | Curva de peso, indicadores, despesas com rateio, painel e filtros                      | UC11–UC15        | 2     |
-| 5    | Alertas com fila e notificação; encerramento com cargas e carência                     | UC16, UC17       | 2     |
-| 3    | App de campo offline (começa por um spike descartável do UC07)                         | UC06, UC07, UC10 | 3     |
-| 6    | Equipamentos e manutenção                                                              | UC18, UC19       | 3     |
-| 7    | IoT: energia e temperatura, alerta por falta de sinal, SMS                             | UC16 estendido   | 4     |
+| Fase | Entrega                                                                                         | UCs              | Marco |
+| ---- | ----------------------------------------------------------------------------------------------- | ---------------- | ----- |
+| 0    | Documentos desta pasta e esqueleto do repositório                                               | —                | 1     |
+| 1    | Conta, fazenda, galpão, vínculo e convite, permissões, auditoria (**entregue**)                 | UC01–UC04        | 1     |
+| 2    | Lote, alojamento, baixas, pesagem, sanidade e carência, entrada de ração, anexos (**entregue**) | UC05–UC10        | 1     |
+| 4    | Curva de peso, indicadores, despesas com rateio, painel e filtros (**entregue**)                | UC11–UC15        | 2     |
+| 5    | Alertas com fila e notificação; encerramento com cargas e carência                              | UC16, UC17       | 2     |
+| 3    | App de campo offline (começa por um spike descartável do UC07)                                  | UC06, UC07, UC10 | 3     |
+| 6    | Equipamentos e manutenção                                                                       | UC18, UC19       | 3     |
+| 7    | IoT: energia e temperatura, alerta por falta de sinal, SMS                                      | UC16 estendido   | 4     |
 
 A Fase 3 vem depois das Fases 4 e 5 porque indicadores e alertas mostram o valor do produto
 mais cedo, e a regra de sincronização (doc 05) já foi pensada para que o app entre depois
 sem mudar o modelo.
 
-Os anexos (S3) passaram da Fase 1 para a Fase 2, porque o primeiro caso de uso que os usa é a
-ocorrência sanitária (UC08).
+Os anexos passaram da Fase 1 para a Fase 2, porque o primeiro caso de uso que os usa é a
+ocorrência sanitária (UC08). Eles são gravados em disco (`ARMAZENAMENTO_DIR`); a troca por S3
+fica para quando houver ambiente de produção.
+
+### Regras da Fase 2 que a equipe precisa confirmar (**Proposta**)
+
+- Lote cadastrado por engano pode ser **cancelado** pelo Gestor enquanto não tiver lançamentos.
+- O alojamento é registrado uma vez e só o Gestor corrige. A data real da chegada passa a ser
+  a data de alojamento do lote.
+- Alojar acima da capacidade: só o Gestor confirma; o Operador recebe a recusa.
+- UC10, "pede revisão se o peso fugir muito": a pesagem pede confirmação quando o peso médio
+  cai em relação à anterior ou quando o ganho diário passa de 120 g/dia.
+- Aviso de mortalidade do dia ao lançar a baixa, com os limites provisórios do doc 06.
+
+### Regras da Fase 4 que a equipe precisa confirmar (**Proposta**)
+
+- "Dentro da meta" (UC11 e UC13) = peso até 5% acima ou abaixo da curva na mesma idade.
+- O custo dos pintos (custo por pinto × aves recebidas) entra no custo total automaticamente,
+  sem lançar despesa.
+- Uma entrega de ração com valor gera a despesa de ração do lote; estornar a entrega estorna
+  a despesa junto. Essa despesa não pode ser estornada sozinha.
+- Despesa sem lote fica como despesa geral da fazenda e não entra no custo de nenhum lote.
+- Nota repetida (mesmo número e fornecedor) pede confirmação em vez de bloquear.
+- A receita prevista usa um preço de referência por lote (R$/kg vivo), informado pelo
+  Gestor ou Produtor.
+- No painel (UC15), a curva padrão só aparece no gráfico quando todos os lotes são da
+  mesma linhagem.
+- As visões salvas do UC15 ficaram para depois.
 
 ## Fora do MVP
 

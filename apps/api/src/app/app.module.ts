@@ -7,6 +7,7 @@ import { PrismaErrosFilter } from '../comum/prisma-erros.filter';
 import { FazendasModule } from '../fazendas/fazendas.module';
 import { HealthController } from '../health/health.controller';
 import { PrismaModule } from '../prisma/prisma.module';
+import { ProducaoModule } from '../producao/producao.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { PrismaModule } from '../prisma/prisma.module';
     ComumModule,
     AuthModule,
     FazendasModule,
+    ProducaoModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_FILTER, useClass: PrismaErrosFilter }],
