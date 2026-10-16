@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    env:
+      # Só para o prisma generate; os testes não acessam o banco.
+      DATABASE_URL: postgresql://crista:crista@localhost:5432/crista
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx nx format:check
+      - run: npx nx run-many -t lint test build

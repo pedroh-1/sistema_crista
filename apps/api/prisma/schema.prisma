@@ -1,0 +1,12 @@
+// Modelo de dados: docs/04-modelo-de-dados.md
+// Os modelos entram a partir da Fase 1, um schema PostgreSQL por módulo.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}

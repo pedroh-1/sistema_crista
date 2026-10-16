@@ -1,0 +1,13 @@
+.inicio {
+  max-width: 40rem;
+  margin: 4rem auto;
+  padding: 0 1rem;
+}
+
+.status {
+  color: #a33;
+
+  &.ok {
+    color: #2a6b2a;
+  }
+}
