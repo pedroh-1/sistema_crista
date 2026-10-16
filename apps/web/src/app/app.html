@@ -1,6 +1,12 @@
-<main class="inicio">
-  <h1>CRISTA</h1>
-  <p>Gestão e monitoramento de lotes avícolas.</p>
-  <p class="status" [class.ok]="apiOk()">API: {{ statusApi() }}</p>
-</main>
-<router-outlet></router-outlet>
+<header class="topo">
+  <a class="marca" routerLink="/fazendas">CRISTA</a>
+  @if (sessao.usuario(); as usuario) {
+  <div class="usuario">
+    <span class="suave">{{ usuario.nome }}</span>
+    <button type="button" class="secundario" (click)="sessao.sair()">
+      Sair
+    </button>
+  </div>
+  }
+</header>
+<router-outlet />

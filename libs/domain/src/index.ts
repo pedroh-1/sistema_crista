@@ -1,3 +1,6 @@
 export * from './lib/indicador';
 export * from './lib/zootecnicos';
 export * from './lib/financeiros';
+export * from './lib/documentos';
+export * from './lib/permissoes';
+export * from './lib/schemas';

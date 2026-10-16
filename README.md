@@ -29,12 +29,22 @@ npm run api   # http://localhost:3000/api/health
 npm run web   # http://localhost:4200
 ```
 
+Sem `SMTP_HOST` no `.env`, os e-mails (confirmação de conta e convites) aparecem no log da API,
+com o link para abrir no navegador.
+
+Para os testes de integração, crie o banco de teste uma vez:
+
+```bash
+PGPASSWORD=crista createdb -h localhost -U crista crista_test
+```
+
 ## Comandos
 
 ```bash
-npm test                  # todos os testes
+npm test                  # testes unitários
+npm run test:integracao   # API inteira contra o banco crista_test
 npm run lint
 npm run build
 npx nx test domain        # testes de um projeto
-npx nx prisma-migrate api # cria e aplica migrations (a partir da Fase 1)
+npx nx prisma-migrate api # cria e aplica migrations
 ```

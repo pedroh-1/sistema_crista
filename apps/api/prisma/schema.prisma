@@ -1,5 +1,5 @@
 // Modelo de dados: docs/04-modelo-de-dados.md
-// Os modelos entram a partir da Fase 1, um schema PostgreSQL por módulo.
+// Um schema PostgreSQL por módulo, para manter as fronteiras do monólito modular.
 
 generator client {
   provider     = "prisma-client"
@@ -9,4 +9,222 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  schemas  = ["conta", "fazenda", "auditoria"]
+}
+
+// ---------- conta ----------
+
+enum StatusUsuario {
+  pendente
+  ativo
+
+  @@schema("conta")
+}
+
+enum TipoToken {
+  email
+  senha
+
+  @@schema("conta")
+}
+
+model Usuario {
+  id                String        @id @default(uuid(7)) @db.Uuid
+  nome              String
+  email             String        @unique
+  telefone          String?
+  cpf               String?       @unique
+  senhaHash         String        @map("senha_hash")
+  status            StatusUsuario @default(pendente)
+  emailVerificadoEm DateTime?     @map("email_verificado_em")
+  criadoEm          DateTime      @default(now()) @map("criado_em")
+
+  aceites  AceiteTermos[]
+  tokens   TokenVerificacao[]
+  vinculos Vinculo[]          @relation("vinculo_usuario")
+
+  @@map("usuario")
+  @@schema("conta")
+}
+
+model AceiteTermos {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  usuarioId    String   @map("id_usuario") @db.Uuid
+  versaoTermos String   @map("versao_termos")
+  aceitoEm     DateTime @default(now()) @map("aceito_em")
+  ip           String?
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@index([usuarioId])
+  @@map("aceite_termos")
+  @@schema("conta")
+}
+
+model TokenVerificacao {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  usuarioId String    @map("id_usuario") @db.Uuid
+  tipo      TipoToken
+  hashToken String    @unique @map("hash_token")
+  expiraEm  DateTime  @map("expira_em")
+  usadoEm   DateTime? @map("usado_em")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@index([usuarioId])
+  @@map("token_verificacao")
+  @@schema("conta")
+}
+
+// ---------- fazenda ----------
+
+enum TipoCriacao {
+  corte
+
+  @@schema("fazenda")
+}
+
+enum TipoGalpao {
+  convencional
+  climatizado
+  dark_house
+
+  @@schema("fazenda")
+}
+
+enum SituacaoGalpao {
+  disponivel
+  ocupado
+  inativo
+
+  @@schema("fazenda")
+}
+
+enum Perfil {
+  gestor
+  produtor
+  veterinario
+  operador
+  consulta
+
+  @@schema("fazenda")
+}
+
+enum StatusVinculo {
+  pendente
+  ativo
+  expirado
+  revogado
+
+  @@schema("fazenda")
+}
+
+model Fazenda {
+  id          String      @id @default(uuid(7)) @db.Uuid
+  nome        String
+  documento   String      @unique
+  logradouro  String?
+  municipio   String
+  uf          String      @db.Char(2)
+  latitude    Decimal?    @db.Decimal(9, 6)
+  longitude   Decimal?    @db.Decimal(9, 6)
+  integradora String?
+  tipoCriacao TipoCriacao @default(corte) @map("tipo_criacao")
+  criadoPorId String      @map("criado_por") @db.Uuid
+  criadoEm    DateTime    @default(now()) @map("criado_em")
+
+  galpoes  Galpao[]
+  vinculos Vinculo[]
+
+  @@map("fazenda")
+  @@schema("fazenda")
+}
+
+model Galpao {
+  id             String         @id @default(uuid(7)) @db.Uuid
+  fazendaId      String         @map("id_fazenda") @db.Uuid
+  identificacao  String
+  areaUtilM2     Decimal        @map("area_util_m2") @db.Decimal(10, 2)
+  capacidadeAves Int            @map("capacidade_aves")
+  tipo           TipoGalpao
+  situacao       SituacaoGalpao @default(disponivel)
+  criadoEm       DateTime       @default(now()) @map("criado_em")
+
+  fazenda  Fazenda         @relation(fields: [fazendaId], references: [id])
+  vinculos VinculoGalpao[]
+
+  @@unique([fazendaId, identificacao])
+  @@map("galpao")
+  @@schema("fazenda")
+}
+
+// Convite e acesso de um usuário a uma fazenda (UC04). Enquanto o convite está
+// pendente, o vínculo é identificado pelo e-mail convidado e usuarioId fica nulo.
+model Vinculo {
+  id              String        @id @default(uuid(7)) @db.Uuid
+  fazendaId       String        @map("id_fazenda") @db.Uuid
+  usuarioId       String?       @map("id_usuario") @db.Uuid
+  emailConvidado  String        @map("email_convidado")
+  perfil          Perfil
+  crmv            String?
+  validoAte       DateTime?     @map("valido_ate") @db.Date
+  status          StatusVinculo @default(pendente)
+  hashConvite     String?       @unique @map("hash_token_convite")
+  conviteExpiraEm DateTime?     @map("convite_expira_em")
+  convidadoPorId  String?       @map("convidado_por") @db.Uuid
+  criadoEm        DateTime      @default(now()) @map("criado_em")
+  aceitoEm        DateTime?     @map("aceito_em")
+  revogadoEm      DateTime?     @map("revogado_em")
+
+  fazenda Fazenda         @relation(fields: [fazendaId], references: [id])
+  usuario Usuario?        @relation("vinculo_usuario", fields: [usuarioId], references: [id])
+  galpoes VinculoGalpao[]
+
+  @@index([fazendaId])
+  @@index([usuarioId])
+  @@map("vinculo_usuario_fazenda")
+  @@schema("fazenda")
+}
+
+// Galpões permitidos ao vínculo. Sem linhas, o acesso vale para a fazenda inteira.
+model VinculoGalpao {
+  vinculoId String @map("id_vinculo") @db.Uuid
+  galpaoId  String @map("id_galpao") @db.Uuid
+
+  vinculo Vinculo @relation(fields: [vinculoId], references: [id], onDelete: Cascade)
+  galpao  Galpao  @relation(fields: [galpaoId], references: [id])
+
+  @@id([vinculoId, galpaoId])
+  @@map("vinculo_galpao")
+  @@schema("fazenda")
+}
+
+// ---------- auditoria ----------
+
+enum OrigemEvento {
+  web
+  app
+  sistema
+
+  @@schema("auditoria")
+}
+
+// Só aceita inserção (docs/05-sincronizacao.md).
+model EventoAuditoria {
+  id           String       @id @default(uuid(7)) @db.Uuid
+  fazendaId    String?      @map("id_fazenda") @db.Uuid
+  usuarioId    String?      @map("id_usuario") @db.Uuid
+  acao         String
+  entidade     String
+  idEntidade   String       @map("id_entidade") @db.Uuid
+  antes        Json?
+  depois       Json?
+  origem       OrigemEvento @default(web)
+  registradoEm DateTime     @default(now()) @map("registrado_em")
+  recebidoEm   DateTime     @default(now()) @map("recebido_em")
+
+  @@index([fazendaId, registradoEm])
+  @@index([entidade, idEntidade])
+  @@map("evento_auditoria")
+  @@schema("auditoria")
 }

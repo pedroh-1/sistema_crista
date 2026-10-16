@@ -7,7 +7,8 @@
     "web": "nx serve web",
     "test": "nx run-many -t test",
     "lint": "nx run-many -t lint",
-    "build": "nx run-many -t build"
+    "build": "nx run-many -t build",
+    "test:integracao": "nx integracao api"
   },
   "private": true,
   "dependencies": {
@@ -23,13 +24,17 @@
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.0",
+    "@nestjs/jwt": "^11.0.2",
     "@nestjs/platform-express": "^11.0.0",
+    "@node-rs/argon2": "^2.2.2",
     "@prisma/adapter-pg": "^7.10.1",
     "@prisma/client": "^7.10.1",
     "express": "^4.21.2",
+    "nodemailer": "^7.0.13",
     "pg": "^8.23.1",
     "reflect-metadata": "^0.2.0",
     "rxjs": "~7.8.0",
+    "zod": "^4.6.7",
     "zone.js": "0.16.2"
   },
   "devDependencies": {
@@ -69,6 +74,7 @@
     "@types/express": "^4.17.21",
     "@types/jest": "~30.0.0",
     "@types/node": "^24.0.0",
+    "@types/nodemailer": "^7.0.12",
     "@types/pg": "^8.23.1",
     "@types/supertest": "^6.0.3",
     "@typescript-eslint/utils": "^8.40.0",

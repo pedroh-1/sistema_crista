@@ -10,20 +10,23 @@
 
 ## Fases
 
-| Fase | Entrega                                                                        | UCs              | Marco |
-| ---- | ------------------------------------------------------------------------------ | ---------------- | ----- |
-| 0    | Documentos desta pasta e esqueleto do repositório                              | —                | 1     |
-| 1    | Conta, fazenda, galpão, vínculo e convite, permissões, auditoria, anexos       | UC01–UC04        | 1     |
-| 2    | Lote, alojamento, baixas, pesagem, sanidade e carência, entrada de ração (web) | UC05–UC10        | 1     |
-| 4    | Curva de peso, indicadores, despesas com rateio, painel e filtros              | UC11–UC15        | 2     |
-| 5    | Alertas com fila e notificação; encerramento com cargas e carência             | UC16, UC17       | 2     |
-| 3    | App de campo offline (começa por um spike descartável do UC07)                 | UC06, UC07, UC10 | 3     |
-| 6    | Equipamentos e manutenção                                                      | UC18, UC19       | 3     |
-| 7    | IoT: energia e temperatura, alerta por falta de sinal, SMS                     | UC16 estendido   | 4     |
+| Fase | Entrega                                                                                | UCs              | Marco |
+| ---- | -------------------------------------------------------------------------------------- | ---------------- | ----- |
+| 0    | Documentos desta pasta e esqueleto do repositório                                      | —                | 1     |
+| 1    | Conta, fazenda, galpão, vínculo e convite, permissões, auditoria (**entregue**)        | UC01–UC04        | 1     |
+| 2    | Lote, alojamento, baixas, pesagem, sanidade e carência, entrada de ração, anexos (web) | UC05–UC10        | 1     |
+| 4    | Curva de peso, indicadores, despesas com rateio, painel e filtros                      | UC11–UC15        | 2     |
+| 5    | Alertas com fila e notificação; encerramento com cargas e carência                     | UC16, UC17       | 2     |
+| 3    | App de campo offline (começa por um spike descartável do UC07)                         | UC06, UC07, UC10 | 3     |
+| 6    | Equipamentos e manutenção                                                              | UC18, UC19       | 3     |
+| 7    | IoT: energia e temperatura, alerta por falta de sinal, SMS                             | UC16 estendido   | 4     |
 
 A Fase 3 vem depois das Fases 4 e 5 porque indicadores e alertas mostram o valor do produto
 mais cedo, e a regra de sincronização (doc 05) já foi pensada para que o app entre depois
 sem mudar o modelo.
+
+Os anexos (S3) passaram da Fase 1 para a Fase 2, porque o primeiro caso de uso que os usa é a
+ocorrência sanitária (UC08).
 
 ## Fora do MVP
 
