@@ -9,7 +9,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  schemas  = ["conta", "fazenda", "producao", "sanidade", "custos", "referencia", "arquivo", "auditoria"]
+  schemas  = ["conta", "fazenda", "producao", "sanidade", "custos", "alertas", "referencia", "arquivo", "fila", "auditoria"]
 }
 
 // ---------- conta ----------
@@ -264,14 +264,16 @@ model Lote {
   criadoPorId             String       @map("criado_por") @db.Uuid
   criadoEm                DateTime     @default(now()) @map("criado_em")
 
-  fazenda     Fazenda               @relation(fields: [fazendaId], references: [id])
-  galpao      Galpao                @relation(fields: [galpaoId], references: [id])
-  alojamento  Alojamento?
-  baixas      EventoBaixa[]
-  pesagens    Pesagem[]
-  movimentos  MovimentoRacao[]
-  ocorrencias OcorrenciaSanitaria[]
-  rateios     DespesaRateio[]
+  fazenda      Fazenda               @relation(fields: [fazendaId], references: [id])
+  galpao       Galpao                @relation(fields: [galpaoId], references: [id])
+  alojamento   Alojamento?
+  baixas       EventoBaixa[]
+  pesagens     Pesagem[]
+  movimentos   MovimentoRacao[]
+  ocorrencias  OcorrenciaSanitaria[]
+  rateios      DespesaRateio[]
+  cargas       SaidaCarga[]
+  encerramento EncerramentoLote?
 
   @@unique([fazendaId, codigo])
   @@index([galpaoId])
@@ -386,6 +388,47 @@ model Estorno {
   criadoEm    DateTime @default(now()) @map("criado_em")
 
   @@map("estorno")
+  @@schema("producao")
+}
+
+// Carga de saída das aves (UC17). Um lote pode sair em várias cargas. Evento.
+model SaidaCarga {
+  id           String       @id @default(uuid(7)) @db.Uuid
+  fazendaId    String       @map("id_fazenda") @db.Uuid
+  loteId       String       @map("id_lote") @db.Uuid
+  data         DateTime     @db.Date
+  aves         Int
+  pesoTotalKg  Decimal      @map("peso_total_kg") @db.Decimal(12, 3)
+  precoKg      Decimal?     @map("preco_kg") @db.Decimal(10, 4)
+  destino      String?
+  numeroGta    String?      @map("numero_gta")
+  status       StatusEvento @default(valido)
+  registradoEm DateTime     @default(now()) @map("registrado_em")
+  recebidoEm   DateTime     @default(now()) @map("recebido_em")
+  criadoPorId  String       @map("criado_por") @db.Uuid
+
+  lote Lote @relation(fields: [loteId], references: [id])
+
+  @@index([loteId, data])
+  @@map("saida_carga")
+  @@schema("producao")
+}
+
+// Resultado congelado no encerramento (UC17). Não muda depois de gravado.
+model EncerramentoLote {
+  id               String   @id @default(uuid(7)) @db.Uuid
+  fazendaId        String   @map("id_fazenda") @db.Uuid
+  loteId           String   @unique @map("id_lote") @db.Uuid
+  dataEncerramento DateTime @map("data_encerramento") @db.Date
+  parcial          Boolean
+  pendencias       Json
+  resultado        Json
+  encerradoPorId   String   @map("encerrado_por") @db.Uuid
+  encerradoEm      DateTime @default(now()) @map("encerrado_em")
+
+  lote Lote @relation(fields: [loteId], references: [id])
+
+  @@map("encerramento_lote")
   @@schema("producao")
 }
 
@@ -509,6 +552,141 @@ model DespesaRateio {
   @@index([despesaId])
   @@map("despesa_rateio")
   @@schema("custos")
+}
+
+// ---------- alertas (UC16) ----------
+
+enum IndicadorAlerta {
+  mortalidade_dia
+  desvio_peso
+  uniformidade
+  temperatura
+  umidade
+  amonia
+  energia
+  equipamento_parado
+  falta_sinal
+
+  @@schema("alertas")
+}
+
+enum Criticidade {
+  atencao
+  critico
+
+  @@schema("alertas")
+}
+
+enum StatusAlerta {
+  aberto
+  fechado
+
+  @@schema("alertas")
+}
+
+enum CanalNotificacao {
+  email
+  push
+  sms
+
+  @@schema("alertas")
+}
+
+enum StatusEnvio {
+  pendente
+  enviada
+  falhou
+
+  @@schema("alertas")
+}
+
+// Limites configurados pela fazenda. Sem regra, valem os limites padrão (sinalizados).
+model RegraAlerta {
+  id              String          @id @default(uuid(7)) @db.Uuid
+  fazendaId       String          @map("id_fazenda") @db.Uuid
+  indicador       IndicadorAlerta
+  limiteAtencao   Decimal         @map("limite_atencao") @db.Decimal(10, 4)
+  limiteCritico   Decimal         @map("limite_critico") @db.Decimal(10, 4)
+  atualizadoPorId String          @map("atualizado_por") @db.Uuid
+  atualizadoEm    DateTime        @default(now()) @updatedAt @map("atualizado_em")
+
+  @@unique([fazendaId, indicador])
+  @@map("regra_alerta")
+  @@schema("alertas")
+}
+
+// Um alerta aberto por lote e indicador; um novo desvio atualiza o aberto.
+model Alerta {
+  id             String          @id @default(uuid(7)) @db.Uuid
+  fazendaId      String          @map("id_fazenda") @db.Uuid
+  loteId         String?         @map("id_lote") @db.Uuid
+  galpaoId       String?         @map("id_galpao") @db.Uuid
+  indicador      IndicadorAlerta
+  criticidade    Criticidade
+  valor          Decimal         @db.Decimal(12, 4)
+  limite         Decimal         @db.Decimal(12, 4)
+  limitePadrao   Boolean         @map("limite_padrao")
+  dataReferencia DateTime        @map("data_referencia") @db.Date
+  mensagem       String
+  status         StatusAlerta    @default(aberto)
+  abertoEm       DateTime        @default(now()) @map("aberto_em")
+  atualizadoEm   DateTime        @default(now()) @updatedAt @map("atualizado_em")
+  fechadoEm      DateTime?       @map("fechado_em")
+  fechadoPorId   String?         @map("fechado_por") @db.Uuid
+  providencia    String?
+
+  notificacoes Notificacao[]
+
+  @@index([fazendaId, status])
+  @@map("alerta")
+  @@schema("alertas")
+}
+
+model Notificacao {
+  id         String           @id @default(uuid(7)) @db.Uuid
+  alertaId   String           @map("id_alerta") @db.Uuid
+  usuarioId  String           @map("id_usuario") @db.Uuid
+  canal      CanalNotificacao
+  status     StatusEnvio      @default(pendente)
+  tentativas Int              @default(0)
+  enviadoEm  DateTime?        @map("enviado_em")
+  erro       String?
+  criadoEm   DateTime         @default(now()) @map("criado_em")
+
+  alerta Alerta @relation(fields: [alertaId], references: [id])
+
+  @@index([alertaId])
+  @@map("notificacao")
+  @@schema("alertas")
+}
+
+// ---------- fila ----------
+
+enum StatusTarefa {
+  pendente
+  processando
+  concluida
+  falhou
+
+  @@schema("fila")
+}
+
+// Fila de tarefas no próprio PostgreSQL (outbox): gravada na mesma transação do
+// lançamento e executada depois, para um pico de alertas não travar o registro (RNF07).
+model Tarefa {
+  id           String       @id @default(uuid(7)) @db.Uuid
+  tipo         String
+  payload      Json
+  status       StatusTarefa @default(pendente)
+  tentativas   Int          @default(0)
+  disponivelEm DateTime     @default(now()) @map("disponivel_em")
+  erro         String?
+  criadoEm     DateTime     @default(now()) @map("criado_em")
+  concluidaEm  DateTime?    @map("concluida_em")
+
+  @@index([status, disponivelEm])
+  @@map("tarefa")
+  @@schema("fila")
 }
 
 // ---------- referencia ----------

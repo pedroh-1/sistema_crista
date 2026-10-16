@@ -30,11 +30,16 @@ export class LoteAtual {
   async recarregar(): Promise<void> {
     const id = this.lote()?.id;
     if (id) await this.carregar(id);
+    // Os alertas (UC16) são avaliados pela fila logo depois do lançamento.
+    setTimeout(
+      () => void this.fazenda.recarregarAlertas().catch(() => undefined),
+      2500,
+    );
   }
 
   /** Estorna um lançamento pedindo o motivo ao usuário. */
   async estornar(
-    entidade: 'baixa' | 'pesagem' | 'racao' | 'ocorrencia',
+    entidade: 'baixa' | 'pesagem' | 'racao' | 'ocorrencia' | 'carga',
     idEvento: string,
   ): Promise<boolean> {
     const motivo = prompt(

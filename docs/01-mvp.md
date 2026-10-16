@@ -16,7 +16,7 @@
 | 1    | Conta, fazenda, galpão, vínculo e convite, permissões, auditoria (**entregue**)                 | UC01–UC04        | 1     |
 | 2    | Lote, alojamento, baixas, pesagem, sanidade e carência, entrada de ração, anexos (**entregue**) | UC05–UC10        | 1     |
 | 4    | Curva de peso, indicadores, despesas com rateio, painel e filtros (**entregue**)                | UC11–UC15        | 2     |
-| 5    | Alertas com fila e notificação; encerramento com cargas e carência                              | UC16, UC17       | 2     |
+| 5    | Alertas com fila e notificação; encerramento com cargas e carência (**entregue**)               | UC16, UC17       | 2     |
 | 3    | App de campo offline (começa por um spike descartável do UC07)                                  | UC06, UC07, UC10 | 3     |
 | 6    | Equipamentos e manutenção                                                                       | UC18, UC19       | 3     |
 | 7    | IoT: energia e temperatura, alerta por falta de sinal, SMS                                      | UC16 estendido   | 4     |
@@ -53,6 +53,24 @@ fica para quando houver ambiente de produção.
 - No painel (UC15), a curva padrão só aparece no gráfico quando todos os lotes são da
   mesma linhagem.
 - As visões salvas do UC15 ficaram para depois.
+
+### Regras da Fase 5 que a equipe precisa confirmar (**Proposta**)
+
+- Alertas avaliados hoje: mortalidade do dia, peso × curva e uniformidade. Limites padrão
+  provisórios: mortalidade de 0,3% (atenção) e 0,5% (crítico), em dobro na 1ª semana; peso 5%
+  e 10% abaixo da curva; uniformidade abaixo de 80% e de 70%. A fazenda pode alterar cada um.
+- Um alerta aberto por lote e indicador: um novo desvio atualiza o aberto em vez de criar
+  outro. Um alerta crítico não volta a ser de atenção enquanto não for fechado.
+- Só o alerta **crítico** gera notificação, enviada uma vez, por e-mail, ao Gestor e ao
+  Veterinário (respeitando os galpões de cada vínculo). Push e SMS ficam para a Fase 7.
+- Fechar um alerta exige a providência adotada (Gestor ou Veterinário).
+- Carência vigente **bloqueia** a carga de saída (inconsistência #5).
+- O encerramento lista pendências: aves sem saída, nenhuma carga, carência vigente com aves
+  no lote, alertas abertos, lançamentos em revisão e falta de ração. Com pendências, só
+  encerra se confirmado, e o relatório sai marcado como **parcial**.
+- O encerramento não pode ser desfeito. O resultado fica congelado e o galpão é liberado.
+- Quem não vê o financeiro (Operador, Veterinário) recebe o relatório sem as seções de custo
+  e receita.
 
 ## Fora do MVP
 

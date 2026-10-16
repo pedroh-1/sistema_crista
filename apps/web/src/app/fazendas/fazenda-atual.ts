@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { Acao, pode } from '@crista/domain';
 import { firstValueFrom } from 'rxjs';
+import { Alerta } from '../nucleo/alertas';
 import { Fazenda, Galpao } from '../nucleo/tipos';
 
 /** Estado da fazenda aberta, compartilhado entre as abas (fornecido pela página da fazenda). */
@@ -11,6 +12,8 @@ export class FazendaAtual {
 
   readonly fazenda = signal<Fazenda | null>(null);
   readonly galpoes = signal<Galpao[]>([]);
+  /** Alertas abertos da fazenda (UC16), para o contador da aba e os avisos do lote. */
+  readonly alertasAbertos = signal<Alerta[]>([]);
   readonly url = computed(() => `/api/fazendas/${this.fazenda()?.id}`);
 
   /** Link absoluto dentro da fazenda, ex.: link('lotes', id). */
@@ -25,6 +28,17 @@ export class FazendaAtual {
     ]);
     this.fazenda.set(fazenda);
     this.galpoes.set(galpoes);
+    await this.recarregarAlertas();
+  }
+
+  async recarregarAlertas(): Promise<void> {
+    this.alertasAbertos.set(
+      await firstValueFrom(
+        this.http.get<Alerta[]>(`${this.url()}/alertas`, {
+          params: { status: 'aberto' },
+        }),
+      ),
+    );
   }
 
   async recarregarGalpoes(): Promise<void> {

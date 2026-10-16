@@ -7,11 +7,15 @@ import {
   Post,
   Put,
   Query,
+  StreamableFile,
   UseGuards,
 } from '@nestjs/common';
 import {
   alojamentoSchema,
   baixaSchema,
+  cargaSchema,
+  encerramentoSchema,
+  FORMATOS_RELATORIO,
   estornoSchema,
   loteSchema,
   movimentoRacaoSchema,
@@ -26,9 +30,14 @@ import {
   AcessoFazendaGuard,
   Permite,
 } from '../fazendas/acesso-fazenda.guard';
+import { EncerramentoService } from './encerramento.service';
 import { ENTIDADES_EVENTO, EventosService } from './eventos.service';
 import { LotesService } from './lotes.service';
+import { RelatorioService } from './relatorio.service';
 
+const formatoSchema = z.object({
+  formato: z.enum(FORMATOS_RELATORIO).default('pdf'),
+});
 const filtroLotesSchema = z.object({
   situacao: z.enum(['em_andamento', 'encerrado', 'cancelado']).optional(),
 });
@@ -45,6 +54,8 @@ export class LotesController {
   constructor(
     private readonly lotes: LotesService,
     private readonly eventos: EventosService,
+    private readonly encerramento: EncerramentoService,
+    private readonly relatorios: RelatorioService,
   ) {}
 
   // ---------- UC05 ----------
@@ -208,5 +219,51 @@ export class LotesController {
       dados.idEvento,
       dados.motivo,
     );
+  }
+
+  // ---------- UC17 ----------
+
+  @Post(':idLote/cargas')
+  @Permite('lote.encerrar')
+  registrarCarga(
+    @Acesso() acesso: AcessoFazenda,
+    @Param('idLote') idLote: string,
+    @Body(new ZodPipe(cargaSchema)) dados: z.output<typeof cargaSchema>,
+  ) {
+    return this.encerramento.registrarCarga(acesso, idLote, dados);
+  }
+
+  @Get(':idLote/cargas')
+  listarCargas(
+    @Acesso() acesso: AcessoFazenda,
+    @Param('idLote') idLote: string,
+  ) {
+    return this.encerramento.listarCargas(acesso, idLote);
+  }
+
+  @Post(':idLote/encerrar')
+  @Permite('lote.encerrar')
+  @HttpCode(200)
+  encerrar(
+    @Acesso() acesso: AcessoFazenda,
+    @Param('idLote') idLote: string,
+    @Body(new ZodPipe(encerramentoSchema))
+    dados: z.output<typeof encerramentoSchema>,
+  ) {
+    return this.encerramento.encerrar(acesso, idLote, dados);
+  }
+
+  @Get(':idLote/relatorio')
+  async relatorio(
+    @Acesso() acesso: AcessoFazenda,
+    @Param('idLote') idLote: string,
+    @Query(new ZodPipe(formatoSchema))
+    { formato }: z.output<typeof formatoSchema>,
+  ) {
+    const r = await this.relatorios.gerar(acesso, idLote, formato);
+    return new StreamableFile(r.conteudo, {
+      type: r.tipo,
+      disposition: `attachment; filename="${r.nome}"`,
+    });
   }
 }

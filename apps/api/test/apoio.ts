@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app/app.module';
 import { EmailService, Mensagem } from '../src/email/email.service';
+import { FilaService } from '../src/fila/fila.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 
 /** Todas as tabelas, para começar cada arquivo de teste com o banco vazio. */
@@ -22,6 +23,12 @@ const TABELAS = [
   'producao.movimento_racao',
   'producao.estorno',
   'sanidade.ocorrencia_sanitaria',
+  'producao.saida_carga',
+  'producao.encerramento_lote',
+  'alertas.regra_alerta',
+  'alertas.alerta',
+  'alertas.notificacao',
+  'fila.tarefa',
   'custos.despesa',
   'custos.despesa_rateio',
   'arquivo.anexo',
@@ -87,7 +94,11 @@ export async function iniciarApi() {
       .expect(200);
   }
 
+  /** Roda as tarefas da fila (avaliação de alertas, notificações). */
+  const processarFila = () => app.get(FilaService).esvaziar();
+
   return {
+    processarFila,
     app,
     prisma,
     api,

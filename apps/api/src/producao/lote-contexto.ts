@@ -96,9 +96,10 @@ export class LoteContexto {
 /** Erro 409 que o cliente pode resolver confirmando (densidade, revisão de pesagem). */
 export class ConfirmacaoNecessaria extends ConflictException {
   constructor(
-    codigo: 'DENSIDADE' | 'REVISAO_PESAGEM' | 'DUPLICIDADE',
+    codigo: 'DENSIDADE' | 'REVISAO_PESAGEM' | 'DUPLICIDADE' | 'PENDENCIAS',
     mensagem: string,
+    detalhes: object = {},
   ) {
-    super({ message: mensagem, codigo });
+    super({ message: mensagem, codigo, ...detalhes });
   }
 }

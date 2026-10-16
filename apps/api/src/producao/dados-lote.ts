@@ -48,6 +48,7 @@ export class DadosLote {
       ocorrencias,
       rateios,
       curva,
+      cargas,
     ] = await Promise.all([
       this.prisma.galpao.findUniqueOrThrow({ where: { id: lote.galpaoId } }),
       this.prisma.alojamento.findUnique({ where: { loteId } }),
@@ -65,6 +66,7 @@ export class DadosLote {
         include: { despesa: true },
       }),
       this.curvaDa(lote),
+      this.prisma.saidaCarga.findMany({ where: { loteId, ...valido } }),
     ]);
 
     return {
@@ -77,6 +79,12 @@ export class DadosLote {
         pesoPintoG: numOuNulo(lote.pesoPintoG),
         areaUtilM2: Number(galpao.areaUtilM2),
         alojamento,
+        cargas: cargas.map((c) => ({
+          data: paraISO(c.data),
+          aves: c.aves,
+          pesoTotalKg: Number(c.pesoTotalKg),
+          precoKg: numOuNulo(c.precoKg),
+        })),
         baixas: baixas.map((b) => ({
           data: paraISO(b.data),
           mortes: b.mortes,
@@ -126,6 +134,7 @@ export class DadosLote {
         pesagens: ate(dados.entrada.pesagens),
         movimentosRacao: ate(dados.entrada.movimentosRacao),
         ocorrencias: ate(dados.entrada.ocorrencias),
+        cargas: ate(dados.entrada.cargas ?? []),
       },
       parcelas: ate(dados.parcelas),
     };

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER } from '@nestjs/core';
+import { AlertasModule } from '../alertas/alertas.module';
 import { AuthModule } from '../auth/auth.module';
 import { ComumModule } from '../comum/comum.module';
 import { PrismaErrosFilter } from '../comum/prisma-erros.filter';
@@ -17,6 +18,7 @@ import { ProducaoModule } from '../producao/producao.module';
     AuthModule,
     FazendasModule,
     ProducaoModule,
+    AlertasModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_FILTER, useClass: PrismaErrosFilter }],

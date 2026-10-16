@@ -32,6 +32,16 @@ import { FazendaAtual } from './fazenda-atual';
           @if (atual.pode('financeiro.ver')) {
             <a routerLink="despesas" routerLinkActive="ativa">Despesas</a>
           }
+          <a routerLink="alertas" routerLinkActive="ativa">
+            Alertas
+            @if (atual.alertasAbertos().length > 0) {
+              <span
+                class="contador"
+                [attr.aria-label]="atual.alertasAbertos().length + ' abertos'"
+                >{{ atual.alertasAbertos().length }}</span
+              >
+            }
+          </a>
           <a routerLink="galpoes" routerLinkActive="ativa">Galpões</a>
           @if (atual.pode('vinculo.gerenciar')) {
             <a routerLink="equipe" routerLinkActive="ativa">Equipe</a>
@@ -55,6 +65,18 @@ import { FazendaAtual } from './fazenda-atual';
       color: var(--texto-suave);
       border-bottom: 2px solid transparent;
       margin-bottom: -1px;
+    }
+    .contador {
+      display: inline-block;
+      min-width: 1.3rem;
+      padding: 0 0.35rem;
+      margin-left: 0.25rem;
+      border-radius: 999px;
+      background: var(--perigo);
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-align: center;
     }
     .abas a.ativa {
       color: var(--primaria);

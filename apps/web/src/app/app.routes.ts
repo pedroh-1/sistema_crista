@@ -97,6 +97,13 @@ export const appRoutes: Route[] = [
                 loadComponent: () =>
                   import('./lotes/aba-custos').then((m) => m.AbaCustos),
               },
+              {
+                path: 'encerramento',
+                loadComponent: () =>
+                  import('./lotes/aba-encerramento').then(
+                    (m) => m.AbaEncerramento,
+                  ),
+              },
             ],
           },
           {
@@ -118,6 +125,11 @@ export const appRoutes: Route[] = [
             path: 'equipe',
             loadComponent: () =>
               import('./fazendas/equipe').then((m) => m.Equipe),
+          },
+          {
+            path: 'alertas',
+            loadComponent: () =>
+              import('./fazendas/alertas').then((m) => m.Alertas),
           },
         ],
       },

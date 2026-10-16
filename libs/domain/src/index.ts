@@ -6,3 +6,4 @@ export * from './lib/permissoes';
 export * from './lib/schemas';
 export * from './lib/producao';
 export * from './lib/custos';
+export * from './lib/alertas';

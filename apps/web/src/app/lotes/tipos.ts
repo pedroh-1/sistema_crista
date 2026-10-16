@@ -49,6 +49,7 @@ export interface LoteDetalhe extends Omit<LoteResumido, 'galpao'> {
     justificativaDivergencia: string | null;
   } | null;
   precoReferenciaKg: number | null;
+  encerramento: Encerramento | null;
   resumo: ResumoLote;
   meta: MetaLote;
 }
@@ -144,3 +145,53 @@ export interface Ocorrencia {
 }
 
 export type { Perfil };
+
+export interface Carga {
+  id: string;
+  data: string;
+  aves: number;
+  pesoTotalKg: number;
+  pesoMedioKg: number;
+  precoKg: number | null;
+  destino: string | null;
+  numeroGta: string | null;
+  estorno: Estorno | null;
+}
+
+export interface ResultadoEncerramento {
+  zootecnico: {
+    avesRecebidas: number | null;
+    avesAlojadas: number | null;
+    baixas: number;
+    avesEntregues: number;
+    avesSemSaida: number | null;
+    mortalidadePct: number | null;
+    viabilidadePct: number | null;
+    idadeAbateDias: number;
+    pesoEntregueKg: number;
+    pesoMedioFinalKg: number | null;
+    gpdFinalG: number | null;
+    racaoConsumidaKg: number | null;
+    conversaoAlimentar: number | null;
+    iep: number | null;
+  };
+  financeiro: {
+    custoTotal: number;
+    porCategoria: { categoria: string; valor: number; percentual: number }[];
+    custoPorAveAlojada: number | null;
+    custoPorKgEntregue: number | null;
+    receitaRealizada: number;
+    cargasSemPreco: number;
+    margem: number;
+    margemPct: number | null;
+  };
+}
+
+export interface Encerramento {
+  data: string;
+  parcial: boolean;
+  pendencias: string[];
+  resultado: ResultadoEncerramento;
+  encerradoPor: string | null;
+  encerradoEm: string;
+}

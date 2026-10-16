@@ -42,6 +42,13 @@ export interface EntradaResumo {
     quantidadeKg: number;
   }[];
   ocorrencias: { data: string; carenciaDias: number | null }[];
+  /** Cargas de saída (UC17). */
+  cargas?: {
+    data: string;
+    aves: number;
+    pesoTotalKg: number;
+    precoKg: number | null;
+  }[];
 }
 
 const SEM_ALOJAMENTO = indisponivel('Alojamento não registrado');
@@ -56,8 +63,13 @@ export function resumoDoLote(e: EntradaResumo) {
     (s, b) => s + b.mortes + b.descartes,
     0,
   );
+  const cargas = e.cargas ?? [];
+  const avesSaidas = cargas.reduce((s, c) => s + c.aves, 0);
+  const pesoEntregueKg = cargas.reduce((s, c) => s + c.pesoTotalKg, 0);
   const saldo =
-    alojadas === null ? null : saldoAves(alojadas, baixasAcumuladas);
+    alojadas === null
+      ? null
+      : saldoAves(alojadas, baixasAcumuladas, avesSaidas);
 
   const mortalidade = mortalidadeAcumulada(baixasAcumuladas, alojadas);
   const viab = viabilidade(mortalidade);
@@ -75,10 +87,15 @@ export function resumoDoLote(e: EntradaResumo) {
     : idade;
 
   const pesoEstoque =
-    saldo === null ? SEM_ALOJAMENTO : pesoVivoEmEstoqueKg(saldo, pesoMedioG);
+    saldo === null
+      ? SEM_ALOJAMENTO
+      : saldo === 0
+        ? disponivel(0)
+        : pesoVivoEmEstoqueKg(saldo, pesoMedioG);
+  const pesoProduzido = pesoVivoProduzidoKg(pesoEstoque, pesoEntregueKg);
   const ca = conversaoAlimentar(
     racaoConsumidaKg(e.movimentosRacao),
-    pesoVivoProduzidoKg(pesoEstoque),
+    pesoProduzido,
   );
 
   return {
@@ -86,6 +103,9 @@ export function resumoDoLote(e: EntradaResumo) {
     avesAlojadas: alojadas,
     baixasAcumuladas,
     saldoAves: saldo,
+    avesSaidas,
+    pesoEntregueKg,
+    pesoVivoProduzidoKg: pesoProduzido,
     mortalidade,
     viabilidade: viab,
     mortalidadeHoje: mortalidadeDoDia(e, alojadas, idade),
@@ -116,7 +136,10 @@ function mortalidadeDoDia(
   const antes = e.baixas
     .filter((b) => b.data < e.hoje)
     .reduce((s, b) => s + b.mortes + b.descartes, 0);
-  const saldoInicioDia = alojadas - antes;
+  const saidasAntes = (e.cargas ?? [])
+    .filter((c) => c.data < e.hoje)
+    .reduce((s, c) => s + c.aves, 0);
+  const saldoInicioDia = alojadas - antes - saidasAntes;
   if (saldoInicioDia <= 0)
     return { percentual: indisponivel('Sem aves no lote'), nivel: null };
   const percentual = (doDia / saldoInicioDia) * 100;

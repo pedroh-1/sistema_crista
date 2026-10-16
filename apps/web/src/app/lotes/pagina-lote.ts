@@ -1,7 +1,15 @@
-import { Component, effect, inject, input, signal } from '@angular/core';
+import {
+  computed,
+  Component,
+  effect,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Indicador, NOME_LINHAGEM, NOME_SEXAGEM } from '@crista/domain';
 import { FazendaAtual } from '../fazendas/fazenda-atual';
+import { ROTULO_CRITICIDADE } from '../nucleo/alertas';
 import { mensagemErro } from '../nucleo/erros';
 import {
   formatarData,
@@ -39,15 +47,24 @@ import { LoteAtual } from './lote-atual';
         }
       </div>
 
+      @for (a of alertasDoLote(); track a.id) {
+        <p class="alerta" [class.aviso]="a.criticidade === 'atencao'">
+          <strong>{{ rotuloCriticidade[a.criticidade] }}:</strong>
+          {{ a.mensagem }}.
+          <a [routerLink]="fazenda.link('alertas')">Ver alertas</a>
+        </p>
+      }
       @if (lote.resumo.carenciaAte) {
         <p class="alerta">
           Aves em período de carência até {{ data(lote.resumo.carenciaAte) }}:
           não podem ser abatidas antes disso.
         </p>
       }
+      <!-- Aviso imediato; some quando o alerta formal (UC16) do dia já existe -->
       @if (
-        lote.resumo.mortalidadeHoje.nivel === 'critico' ||
-        lote.resumo.mortalidadeHoje.nivel === 'atencao'
+        !temAlertaMortalidade() &&
+        (lote.resumo.mortalidadeHoje.nivel === 'critico' ||
+          lote.resumo.mortalidadeHoje.nivel === 'atencao')
       ) {
         <p class="alerta">
           Mortalidade de hoje em
@@ -109,6 +126,9 @@ import { LoteAtual } from './lote-atual';
         @if (fazenda.pode('financeiro.ver')) {
           <a routerLink="custos" routerLinkActive="ativa">Custos</a>
         }
+        <a routerLink="encerramento" routerLinkActive="ativa"
+          >Saída e encerramento</a
+        >
       </nav>
       <router-outlet />
     }
@@ -159,6 +179,15 @@ import { LoteAtual } from './lote-atual';
 export class PaginaLote {
   protected readonly atual = inject(LoteAtual);
   protected readonly fazenda = inject(FazendaAtual);
+  protected readonly rotuloCriticidade = ROTULO_CRITICIDADE;
+  protected readonly temAlertaMortalidade = computed(() =>
+    this.alertasDoLote().some((a) => a.indicador === 'mortalidade_dia'),
+  );
+  protected readonly alertasDoLote = computed(() =>
+    this.fazenda
+      .alertasAbertos()
+      .filter((a) => a.loteId === this.atual.lote()?.id),
+  );
   protected readonly nomeLinhagem = NOME_LINHAGEM;
   protected readonly nomeSexagem = NOME_SEXAGEM;
   protected readonly nomeSituacao = NOME_SITUACAO_META;

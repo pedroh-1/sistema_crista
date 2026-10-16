@@ -14,12 +14,15 @@ import {
   motivoRevisaoPesagem,
   movimentoRacaoSchema,
   pesagemSchema,
+  hojeISO,
   pode,
   uniformidade,
 } from '@crista/domain';
 import { z } from 'zod';
 import { AuditoriaService } from '../auditoria/auditoria.service';
 import { DespesasService } from '../custos/despesas.service';
+import { FilaService } from '../fila/fila.service';
+import { TAREFA_AVALIAR_LOTE } from '../fila/tarefas';
 import { AcessoFazenda } from '../fazendas/acesso-fazenda.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -40,6 +43,7 @@ export const ENTIDADES_EVENTO = {
   pesagem: 'pesagem.registrar',
   racao: 'racao.registrar',
   ocorrencia: 'sanidade.registrar',
+  carga: 'lote.encerrar',
 } as const satisfies Record<string, Acao>;
 export type EntidadeEvento = keyof typeof ENTIDADES_EVENTO;
 
@@ -50,6 +54,7 @@ export class EventosService {
     private readonly auditoria: AuditoriaService,
     private readonly contexto: LoteContexto,
     private readonly despesas: DespesasService,
+    private readonly fila: FilaService,
   ) {}
 
   // ---------- UC07: baixa diária ----------
@@ -113,6 +118,11 @@ export class EventosService {
         },
         tx,
       );
+      // UC16: a avaliação de alertas roda depois, pela fila (RNF07).
+      await this.fila.enfileirar(tx, TAREFA_AVALIAR_LOTE, {
+        loteId,
+        data: dados.data,
+      });
       return { baixa: criada, saldo: saldoAntes };
     });
 
@@ -234,6 +244,10 @@ export class EventosService {
         },
         tx,
       );
+      await this.fila.enfileirar(tx, TAREFA_AVALIAR_LOTE, {
+        loteId,
+        data: hojeISO(),
+      });
       return criada;
     });
 
@@ -421,6 +435,8 @@ export class EventosService {
         return this.prisma.movimentoRacao.findFirst({ where });
       case 'ocorrencia':
         return this.prisma.ocorrenciaSanitaria.findFirst({ where });
+      case 'carga':
+        return this.prisma.saidaCarga.findFirst({ where });
     }
   }
 

@@ -15,3 +15,6 @@ process.env['WEB_URL'] = 'http://web.teste';
 process.env['SMTP_HOST'] = '';
 // Anexos dos testes vão para uma pasta temporária, fora do projeto.
 process.env['ARMAZENAMENTO_DIR'] = join(tmpdir(), 'crista-testes-anexos');
+
+// A fila não roda sozinha nos testes: cada teste chama processarFila().
+process.env['FILA_WORKER'] = 'desligado';

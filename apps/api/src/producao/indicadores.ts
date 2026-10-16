@@ -150,8 +150,17 @@ export function financeiroDoLote(dados: DadosDoLote) {
     );
   const total = [...porCategoria.values()].reduce((s, v) => s + v, 0);
 
-  const pesoProduzido: Indicador = resumo.pesoVivoEstoqueKg;
-  const receita = receitaPrevista(resumo.pesoVivoEstoqueKg, precoKg);
+  // Receita = cargas já vendidas + aves que ainda estão no galpão a preço de referência.
+  const cargas = e.cargas ?? [];
+  const receitaRealizada = receitaRealizadaDas(cargas);
+  const estoque = resumo.pesoVivoEstoqueKg;
+  const receitaEstoque =
+    estoque.disponivel && estoque.valor === 0
+      ? disponivel(0)
+      : receitaPrevista(estoque, precoKg);
+  const receita = receitaEstoque.disponivel
+    ? disponivel(receitaRealizada + receitaEstoque.valor)
+    : receitaEstoque;
   return {
     custoPintos: pintos,
     custoPintoInformado: custoPinto !== null,
@@ -167,10 +176,93 @@ export function financeiroDoLote(dados: DadosDoLote) {
       resumo.avesAlojadas === null
         ? indisponivel('Alojamento não registrado')
         : custoPorAveAlojada(total, resumo.avesAlojadas),
-    custoPorKg: custoPorKg(total, pesoProduzido),
+    custoPorKg: custoPorKg(total, resumo.pesoVivoProduzidoKg),
     precoReferenciaKg: precoKg,
+    receitaRealizada,
+    cargasSemPreco: cargas.filter((c) => c.precoKg === null).length,
     receitaPrevista: receita,
     margem: margem(receita, total),
     margemPercentual: margemPercentual(receita, total),
   };
 }
+
+const receitaRealizadaDas = (
+  cargas: NonNullable<DadosDoLote['entrada']['cargas']>,
+) =>
+  cargas.reduce(
+    (s, c) => s + (c.precoKg === null ? 0 : c.pesoTotalKg * c.precoKg),
+    0,
+  );
+
+const valorOuNulo = (i: Indicador) => (i.disponivel ? i.valor : null);
+
+/**
+ * UC17: resultado zootécnico e financeiro na data do encerramento. É gravado
+ * como está (congelado) e não é recalculado depois.
+ */
+export function resultadoDoEncerramento(dados: DadosDoLote) {
+  const e = dados.entrada;
+  const resumo = resumoDoLote(e);
+  const fin = financeiroDoLote(dados);
+  const cargas = e.cargas ?? [];
+  const ultimaSaida =
+    [...cargas]
+      .map((c) => c.data)
+      .sort()
+      .at(-1) ?? e.hoje;
+  const idadeAbate = idadeDias(
+    e.dataAlojamento,
+    ultimaSaida,
+    e.idadeInicialDias,
+  );
+  const pesoMedioFinalKg =
+    resumo.avesSaidas > 0 ? resumo.pesoEntregueKg / resumo.avesSaidas : null;
+  const ca = resumo.conversaoAlimentar;
+  const viab = resumo.viabilidade;
+  const iepFinal =
+    viab.disponivel &&
+    ca.disponivel &&
+    pesoMedioFinalKg !== null &&
+    idadeAbate > 0
+      ? ((viab.valor * pesoMedioFinalKg) / (idadeAbate * ca.valor)) * 100
+      : null;
+  const custoKgEntregue =
+    resumo.pesoEntregueKg > 0 ? fin.custoTotal / resumo.pesoEntregueKg : null;
+  const margemRealizada = fin.receitaRealizada - fin.custoTotal;
+
+  return {
+    zootecnico: {
+      avesRecebidas: e.alojamento?.avesRecebidas ?? null,
+      avesAlojadas: resumo.avesAlojadas,
+      baixas: resumo.baixasAcumuladas,
+      avesEntregues: resumo.avesSaidas,
+      avesSemSaida: resumo.saldoAves,
+      mortalidadePct: valorOuNulo(resumo.mortalidade),
+      viabilidadePct: valorOuNulo(viab),
+      idadeAbateDias: idadeAbate,
+      pesoEntregueKg: resumo.pesoEntregueKg,
+      pesoMedioFinalKg,
+      gpdFinalG:
+        pesoMedioFinalKg !== null && e.pesoPintoG !== null && idadeAbate > 0
+          ? (pesoMedioFinalKg * 1000 - e.pesoPintoG) / idadeAbate
+          : null,
+      racaoConsumidaKg: valorOuNulo(resumo.racaoConsumidaKg),
+      conversaoAlimentar: valorOuNulo(ca),
+      iep: iepFinal,
+    },
+    financeiro: {
+      custoTotal: fin.custoTotal,
+      porCategoria: fin.porCategoria,
+      custoPorAveAlojada: valorOuNulo(fin.custoPorAveAlojada),
+      custoPorKgEntregue: custoKgEntregue,
+      receitaRealizada: fin.receitaRealizada,
+      cargasSemPreco: fin.cargasSemPreco,
+      margem: margemRealizada,
+      margemPct:
+        fin.receitaRealizada > 0
+          ? (margemRealizada / fin.receitaRealizada) * 100
+          : null,
+    },
+  };
+}
+export type ResultadoEncerramento = ReturnType<typeof resultadoDoEncerramento>;

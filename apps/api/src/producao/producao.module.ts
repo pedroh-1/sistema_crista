@@ -8,6 +8,8 @@ import { PainelService } from '../custos/painel.service';
 import { SanidadeController } from '../sanidade/sanidade.controller';
 import { OcorrenciasService } from '../sanidade/ocorrencias.service';
 import { DadosLote } from './dados-lote';
+import { EncerramentoService } from './encerramento.service';
+import { RelatorioService } from './relatorio.service';
 import { EventosService } from './eventos.service';
 import { LoteContexto } from './lote-contexto';
 import { LotesService } from './lotes.service';
@@ -29,8 +31,11 @@ import { LotesController } from './producao.controller';
     AnexosService,
     Armazenamento,
     DadosLote,
+    EncerramentoService,
+    RelatorioService,
     DespesasService,
     PainelService,
   ],
+  exports: [DadosLote, LoteContexto],
 })
 export class ProducaoModule {}

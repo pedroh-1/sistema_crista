@@ -19,6 +19,7 @@ import {
   paraISO,
 } from './lote-contexto';
 import { DadosLote } from './dados-lote';
+import { EncerramentoService } from './encerramento.service';
 import {
   curvaAte,
   financeiroDoLote,
@@ -62,6 +63,7 @@ export class LotesService {
     private readonly auditoria: AuditoriaService,
     private readonly contexto: LoteContexto,
     private readonly dadosLote: DadosLote,
+    private readonly encerramentos: EncerramentoService,
   ) {}
 
   /** UC05: um lote em andamento por galpão; o galpão passa a ocupado. */
@@ -167,11 +169,14 @@ export class LotesService {
   /** Lote com alojamento, indicadores do dia e meta da curva (UC13). */
   async obter(acesso: AcessoFazenda, loteId: string) {
     const lote = await this.contexto.carregar(acesso, loteId);
-    const dados = await this.dadosLote.carregar(lote);
+    // Lote encerrado é visto como estava na data do encerramento.
+    const encerramento = await this.encerramentos.encerramento(loteId);
+    const dados = await this.dadosLote.carregar(lote, encerramento?.data);
     const alojamento = await this.prisma.alojamento.findUnique({
       where: { loteId },
     });
     return {
+      encerramento,
       ...loteParaResposta(lote),
       galpao: {
         id: dados.galpao.id,
