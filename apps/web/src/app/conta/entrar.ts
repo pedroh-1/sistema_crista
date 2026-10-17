@@ -13,7 +13,7 @@ import { Sessao } from '../nucleo/sessao';
       <h1>Entrar no CRISTA</h1>
       <form class="cartao formulario" (ngSubmit)="enviar()">
         @if (erro()) {
-          <p class="alerta" role="alert">{{ erro() }}</p>
+          <p class="aviso" role="alert">{{ erro() }}</p>
         }
         <label>
           E-mail

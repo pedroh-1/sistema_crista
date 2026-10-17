@@ -10,117 +10,194 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Indicador, NOME_LINHAGEM, NOME_SEXAGEM } from '@crista/domain';
 import { FazendaAtual } from '../fazendas/fazenda-atual';
 import { ROTULO_CRITICIDADE } from '../nucleo/alertas';
+import { CartaoIndicador } from '../nucleo/cartao-indicador';
 import { mensagemErro } from '../nucleo/erros';
 import {
   formatarData,
   formatarIndicador,
   formatarNumero,
 } from '../nucleo/formato';
-import { NOME_SITUACAO_META } from './aba-curva';
+import {
+  CLASSE_SITUACAO_META,
+  ICONE_SITUACAO_META,
+  NOME_SITUACAO_META,
+} from './aba-curva';
 import { FormAlojamento } from './form-alojamento';
 import { LoteAtual } from './lote-atual';
 
 @Component({
   selector: 'crista-pagina-lote',
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, FormAlojamento],
+  imports: [
+    RouterLink,
+    RouterLinkActive,
+    RouterOutlet,
+    FormAlojamento,
+    CartaoIndicador,
+  ],
   providers: [LoteAtual],
   template: `
-    <p><a [routerLink]="fazenda.link('lotes')">← Lotes</a></p>
+    <nav class="trilha" aria-label="Caminho">
+      <a [routerLink]="fazenda.link('lotes')">Lotes</a>
+      @if (atual.lote(); as lote) {
+        <span aria-hidden="true">/</span><span>{{ lote.codigo }}</span>
+      }
+    </nav>
     @if (erro()) {
-      <p class="alerta" role="alert">{{ erro() }}</p>
+      <p class="aviso" role="alert">{{ erro() }}</p>
     }
     @if (atual.lote(); as lote) {
-      <div class="cabecalho-secao">
+      <header class="cabecalho-secao">
         <div>
-          <h2>Lote {{ lote.codigo }}</h2>
+          <h1>Lote {{ lote.codigo }}</h1>
           <span class="suave">
             {{ lote.galpao.identificacao }} · {{ nomeLinhagem[lote.linhagem] }}
             {{ nomeSexagem[lote.sexagem] }} · alojado em
             {{ data(lote.dataAlojamento) }}
+            @if (lote.alojamento) {
+              · <strong class="num">{{ lote.resumo.idadeDias }} dias</strong>
+            }
           </span>
         </div>
         @if (!atual.emAndamento()) {
-          <span class="etiqueta inativo"
+          <span class="etiqueta" [class.critico]="lote.situacao === 'cancelado'"
             >{{ lote.situacao === 'cancelado' ? 'Cancelado' : 'Encerrado' }}: só
             consulta</span
           >
         }
-      </div>
+      </header>
 
       @for (a of alertasDoLote(); track a.id) {
-        <p class="alerta" [class.aviso]="a.criticidade === 'atencao'">
-          <strong>{{ rotuloCriticidade[a.criticidade] }}:</strong>
-          {{ a.mensagem }}.
-          <a [routerLink]="fazenda.link('alertas')">Ver alertas</a>
+        <p
+          class="aviso"
+          [class.atencao]="a.criticidade === 'atencao'"
+          role="alert"
+        >
+          <span
+            ><strong>{{ rotuloCriticidade[a.criticidade] }}:</strong>
+            {{ a.mensagem }}.</span
+          >
+          <a class="acoes" [routerLink]="fazenda.link('alertas')"
+            >Ver alertas</a
+          >
         </p>
       }
       @if (lote.resumo.carenciaAte) {
-        <p class="alerta">
-          Aves em período de carência até {{ data(lote.resumo.carenciaAte) }}:
-          não podem ser abatidas antes disso.
+        <p class="aviso atencao">
+          ⚠ Aves em período de carência até
+          {{ data(lote.resumo.carenciaAte) }}: não podem ser abatidas antes
+          disso.
         </p>
       }
       <!-- Aviso imediato; some quando o alerta formal (UC16) do dia já existe -->
-      @if (
-        !temAlertaMortalidade() &&
-        (lote.resumo.mortalidadeHoje.nivel === 'critico' ||
-          lote.resumo.mortalidadeHoje.nivel === 'atencao')
-      ) {
-        <p class="alerta">
-          Mortalidade de hoje em
-          {{ ind(lote.resumo.mortalidadeHoje.percentual, 2, '%') }} ({{
-            lote.resumo.mortalidadeHoje.nivel === 'critico'
-              ? 'nível crítico'
-              : 'nível de atenção'
-          }}).
+      @if (!temAlertaMortalidade() && tomMortalidade(); as tom) {
+        <p class="aviso" [class.atencao]="tom === 'atencao'">
+          {{ rotuloCriticidade[tom] }}: mortalidade de hoje em
+          {{ ind(lote.resumo.mortalidadeHoje.percentual, 2, ' %') }}.
         </p>
       }
 
       @if (lote.alojamento) {
-        <div class="indicadores">
-          <div class="indicador">
-            <span class="rotulo">Idade</span
-            ><strong>{{ lote.resumo.idadeDias }} dias</strong>
-          </div>
-          <div class="indicador">
-            <span class="rotulo">Saldo de aves</span
-            ><strong>{{ num(lote.resumo.saldoAves) }}</strong>
-          </div>
-          <div class="indicador" [title]="motivo(lote.meta.desvioCurva)">
-            <span class="rotulo">Peso × curva</span>
-            <strong>{{ ind(lote.meta.desvioCurva, 1, '%') }}</strong>
-            @if (lote.meta.situacao) {
-              <span class="situacao-meta" [class]="lote.meta.situacao">{{
-                nomeSituacao[lote.meta.situacao]
+        <section class="indicadores" aria-label="Indicadores do lote">
+          <crista-cartao-indicador
+            nome="Saldo de aves"
+            [valor]="lote.resumo.saldoAves"
+          >
+            de {{ num(lote.resumo.avesAlojadas) }} alojadas ·
+            {{ num(lote.resumo.baixasAcumuladas) }} baixas
+          </crista-cartao-indicador>
+          <crista-cartao-indicador
+            nome="Mortalidade"
+            [valor]="lote.resumo.mortalidade"
+            [casas]="2"
+            unidade="%"
+            [tom]="tomMortalidade()"
+          >
+            @if (tomMortalidade(); as tom) {
+              <span class="etiqueta" [class]="tom">{{
+                rotuloCriticidade[tom]
               }}</span>
             }
-          </div>
-          @for (c of cartoes; track c.rotulo) {
-            <div class="indicador" [title]="motivo(lote.resumo[c.chave])">
-              <span class="rotulo">{{ c.rotulo }}</span>
-              <strong>{{
-                ind(lote.resumo[c.chave], c.casas, c.unidade)
-              }}</strong>
+            hoje {{ ind(lote.resumo.mortalidadeHoje.percentual, 2, ' %') }}
+          </crista-cartao-indicador>
+          <crista-cartao-indicador
+            nome="Peso médio"
+            [valor]="lote.resumo.pesoMedioG"
+            unidade="g"
+          >
+            @if (lote.meta.situacao) {
+              <span
+                class="etiqueta"
+                [class]="classeSituacao[lote.meta.situacao]"
+                >{{ iconeSituacao[lote.meta.situacao] }}
+                {{ nomeSituacao[lote.meta.situacao] }}</span
+              >
+            }
+            @if (lote.meta.pesoPadraoG) {
+              padrão {{ num(lote.meta.pesoPadraoG) }} g
+            }
+            @if (lote.meta.desvioCurva.disponivel) {
+              ({{ ind(lote.meta.desvioCurva, 1, ' %') }})
+            }
+            @if (lote.resumo.ultimaPesagem) {
+              · {{ data(lote.resumo.ultimaPesagem) }}
+            }
+          </crista-cartao-indicador>
+          <crista-cartao-indicador
+            nome="Uniformidade"
+            [valor]="lote.resumo.uniformidade"
+            [casas]="1"
+            unidade="%"
+          >
+            na última pesagem
+          </crista-cartao-indicador>
+          <crista-cartao-indicador
+            nome="Conversão alimentar"
+            [valor]="lote.resumo.conversaoAlimentar"
+            [casas]="3"
+          >
+            @if (lote.meta.caPadrao.disponivel) {
+              padrão {{ ind(lote.meta.caPadrao, 3) }}
+            }
+          </crista-cartao-indicador>
+          <crista-cartao-indicador nome="IEP" [valor]="lote.resumo.iep">
+            índice de eficiência produtiva
+          </crista-cartao-indicador>
+        </section>
+
+        <dl class="detalhes cartao">
+          @for (d of detalhes; track d.rotulo) {
+            <div [title]="motivo(lote.resumo[d.chave])">
+              <dt>{{ d.rotulo }}</dt>
+              <dd class="num">
+                {{ ind(lote.resumo[d.chave], d.casas, d.unidade) }}
+              </dd>
             </div>
           }
-        </div>
-        <p class="suave">
-          Alojamento: {{ num(lote.alojamento.avesRecebidas) }} aves recebidas,
-          {{ num(lote.alojamento.mortasTransporte) }} mortas no transporte, em
-          {{ data(lote.alojamento.data) }}.
-          @if (lote.resumo.ultimaPesagem) {
-            Peso da pesagem de {{ data(lote.resumo.ultimaPesagem) }}.
-          }
-          Passe o mouse sobre um "—" para ver o que falta.
-        </p>
+          <div>
+            <dt>Alojamento</dt>
+            <dd class="num">
+              {{ num(lote.alojamento.avesRecebidas) }} aves em
+              {{ data(lote.alojamento.data) }}
+              @if (lote.alojamento.mortasTransporte > 0) {
+                · {{ num(lote.alojamento.mortasTransporte) }} mortas no
+                transporte
+              }
+            </dd>
+          </div>
+        </dl>
       } @else if (atual.emAndamento()) {
         <crista-form-alojamento />
       }
 
-      <nav class="abas">
+      <nav class="abas" aria-label="Áreas do lote">
         <a routerLink="mortalidade" routerLinkActive="ativa">Mortalidade</a>
         <a routerLink="pesagens" routerLinkActive="ativa">Pesagens</a>
-        <a routerLink="sanidade" routerLinkActive="ativa">Sanidade</a>
+        <a routerLink="sanidade" routerLinkActive="ativa"
+          >Sanidade
+          @if (lote.resumo.carenciaAte) {
+            <span class="etiqueta atencao">Carência</span>
+          }
+        </a>
         <a routerLink="racao" routerLinkActive="ativa">Ração</a>
         <a routerLink="curva" routerLinkActive="ativa">Curva de peso</a>
         @if (fazenda.pode('financeiro.ver')) {
@@ -131,47 +208,29 @@ import { LoteAtual } from './lote-atual';
         >
       </nav>
       <router-outlet />
+    } @else if (!erro()) {
+      <span class="esqueleto" style="height: 34px; width: 240px"></span>
+      <div class="indicadores" style="margin-top: 24px">
+        @for (i of [1, 2, 3, 4, 5, 6]; track i) {
+          <span class="esqueleto" style="height: 110px"></span>
+        }
+      </div>
     }
   `,
   styles: `
-    .indicadores {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      gap: 0.6rem;
-      margin-bottom: 0.75rem;
-    }
-    .indicador {
-      background: var(--superficie);
-      border: 1px solid var(--borda);
-      border-radius: var(--raio);
-      padding: 0.6rem 0.75rem;
-      display: grid;
-    }
-    .indicador strong {
-      font-size: 1.15rem;
-    }
-    .rotulo {
-      font-size: 0.8rem;
-      color: var(--texto-suave);
-    }
-    .abas {
+    .detalhes {
       display: flex;
-      gap: 0.25rem;
-      border-bottom: 1px solid var(--borda);
-      margin: 1rem 0;
-      overflow-x: auto;
+      flex-wrap: wrap;
+      gap: var(--espaco-3) var(--espaco-6);
+      padding: var(--espaco-4) var(--espaco-5);
+      margin: 0 0 var(--espaco-6);
     }
-    .abas a {
-      padding: 0.5rem 0.9rem;
-      text-decoration: none;
+    .detalhes dt {
+      font-size: 13px;
       color: var(--texto-suave);
-      border-bottom: 2px solid transparent;
-      margin-bottom: -1px;
-      white-space: nowrap;
     }
-    .abas a.ativa {
-      color: var(--primaria);
-      border-bottom-color: var(--primaria);
+    .detalhes dd {
+      margin: 0;
       font-weight: 600;
     }
   `,
@@ -196,11 +255,17 @@ export class PaginaLote {
   protected readonly ind = formatarIndicador;
   protected readonly erro = signal('');
 
-  protected readonly cartoes = [
-    { rotulo: 'Mortalidade', chave: 'mortalidade', casas: 2, unidade: '%' },
-    { rotulo: 'Viabilidade', chave: 'viabilidade', casas: 2, unidade: '%' },
-    { rotulo: 'Peso médio', chave: 'pesoMedioG', casas: 0, unidade: ' g' },
-    { rotulo: 'Uniformidade', chave: 'uniformidade', casas: 1, unidade: '%' },
+  protected readonly classeSituacao = CLASSE_SITUACAO_META;
+  protected readonly iconeSituacao = ICONE_SITUACAO_META;
+  /** Nível da mortalidade de hoje, quando pede atenção. */
+  protected readonly tomMortalidade = computed(() => {
+    const nivel = this.atual.lote()?.resumo.mortalidadeHoje.nivel;
+    return nivel === 'critico' || nivel === 'atencao' ? nivel : null;
+  });
+
+  /** Indicadores de apoio, numa linha só abaixo dos cartões. */
+  protected readonly detalhes = [
+    { rotulo: 'Viabilidade', chave: 'viabilidade', casas: 2, unidade: ' %' },
     { rotulo: 'GPD médio', chave: 'gpdMedioG', casas: 1, unidade: ' g/dia' },
     {
       rotulo: 'Ração consumida',
@@ -209,12 +274,11 @@ export class PaginaLote {
       unidade: ' kg',
     },
     {
-      rotulo: 'Conversão alimentar',
-      chave: 'conversaoAlimentar',
-      casas: 3,
-      unidade: '',
+      rotulo: 'Peso vivo em estoque',
+      chave: 'pesoVivoEstoqueKg',
+      casas: 0,
+      unidade: ' kg',
     },
-    { rotulo: 'IEP', chave: 'iep', casas: 0, unidade: '' },
     {
       rotulo: 'Densidade',
       chave: 'densidadeKgM2',

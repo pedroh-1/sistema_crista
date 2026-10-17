@@ -9,6 +9,7 @@ import {
   visaoSalvaSchema,
 } from '@crista/domain';
 import { firstValueFrom } from 'rxjs';
+import { Dialogos } from '../nucleo/dialogos';
 import { FazendaAtual } from '../fazendas/fazenda-atual';
 import {
   FinanceiroLote,
@@ -142,7 +143,7 @@ const LINHAS_FINANCEIRAS: Linha[] = [
   imports: [FormsModule, GraficoLinhas],
   template: `
     @if (erro()) {
-      <p class="alerta" role="alert">{{ erro() }}</p>
+      <p class="aviso" role="alert">{{ erro() }}</p>
     }
     <section class="cartao filtros">
       <fieldset>
@@ -232,13 +233,13 @@ const LINHAS_FINANCEIRAS: Linha[] = [
         }
       </div>
       @if (avisoVisao()) {
-        <p class="alerta aviso" role="status">{{ avisoVisao() }}</p>
+        <p class="aviso atencao" role="status">{{ avisoVisao() }}</p>
       }
     </section>
 
     @if (resultado(); as r) {
       @for (a of r.avisos; track a) {
-        <p class="alerta aviso">{{ a }}</p>
+        <p class="aviso atencao">{{ a }}</p>
       }
 
       <section class="cartao">
@@ -338,6 +339,7 @@ const LINHAS_FINANCEIRAS: Linha[] = [
 })
 export class Painel implements OnInit {
   private readonly http = inject(HttpClient);
+  private readonly dialogos = inject(Dialogos);
   private readonly atual = inject(FazendaAtual);
 
   protected readonly maximo = MAXIMO_LOTES_COMPARACAO;
@@ -478,11 +480,16 @@ export class Painel implements OnInit {
 
   async salvarVisao(): Promise<void> {
     const atual = this.visoes().find((v) => v.id === this.visaoEscolhida());
-    const nome = prompt(
-      'Nome da visão (um nome que já existe é substituído):',
-      atual?.nome ?? '',
-    );
-    if (!nome?.trim()) return;
+    const nome = await this.dialogos.pedirTexto({
+      titulo: 'Salvar visão',
+      mensagem: 'Um nome que já existe é substituído.',
+      rotulo: 'Nome da visão',
+      acao: 'Salvar visão',
+      valor: atual?.nome ?? '',
+      minimo: 2,
+      maximo: 60,
+    });
+    if (!nome) return;
     const v = validar(visaoSalvaSchema, {
       nome,
       filtros: {
@@ -513,7 +520,17 @@ export class Painel implements OnInit {
 
   async excluirVisao(): Promise<void> {
     const visao = this.visoes().find((v) => v.id === this.visaoEscolhida());
-    if (!visao || !confirm(`Excluir a visão "${visao.nome}"?`)) return;
+    if (
+      !visao ||
+      !(await this.dialogos.confirmar({
+        titulo: `Excluir a visão "${visao.nome}"?`,
+        mensagem:
+          'Os lotes e o período salvos nela deixam de aparecer na lista.',
+        acao: 'Excluir visão',
+        perigo: true,
+      }))
+    )
+      return;
     this.erro.set('');
     try {
       await firstValueFrom(

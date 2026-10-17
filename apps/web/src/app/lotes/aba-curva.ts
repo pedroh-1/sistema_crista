@@ -14,17 +14,31 @@ export const NOME_SITUACAO_META: Record<SituacaoMeta, string> = {
   acima: 'Acima da meta',
 };
 
+/** Tom da etiqueta: abaixo da meta é crítico, acima pede atenção. */
+export const CLASSE_SITUACAO_META: Record<SituacaoMeta, string> = {
+  abaixo: 'critico',
+  dentro: 'sucesso',
+  acima: 'atencao',
+};
+
+/** Situação nunca só por cor: o glifo vai junto do texto. */
+export const ICONE_SITUACAO_META: Record<SituacaoMeta, string> = {
+  abaixo: '‼',
+  dentro: '✓',
+  acima: '⚠',
+};
+
 /** UC11: evolução do peso médio contra a curva padrão da linhagem. */
 @Component({
   selector: 'crista-aba-curva',
   imports: [GraficoLinhas],
   template: `
     @if (erro()) {
-      <p class="alerta" role="alert">{{ erro() }}</p>
+      <p class="aviso" role="alert">{{ erro() }}</p>
     }
     @if (curva(); as c) {
       @if (c.fonteCurva === 'sintetico') {
-        <p class="alerta aviso">
+        <p class="aviso atencao">
           Curva de teste: os valores padrão ainda não são os do manual da
           linhagem.
         </p>

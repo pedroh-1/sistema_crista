@@ -10,6 +10,7 @@ import {
   SEXAGENS,
 } from '@crista/domain';
 import { firstValueFrom } from 'rxjs';
+import { Dialogos } from '../nucleo/dialogos';
 import { FazendaAtual } from '../fazendas/fazenda-atual';
 import {
   confirmouAposAviso,
@@ -35,7 +36,7 @@ import { hoje } from '../nucleo/formato';
     } @else {
       <form class="cartao formulario" (ngSubmit)="enviar()">
         @if (erro()) {
-          <p class="alerta" role="alert">{{ erro() }}</p>
+          <p class="aviso" role="alert">{{ erro() }}</p>
         }
         <div class="grade-2">
           <label>
@@ -146,6 +147,7 @@ import { hoje } from '../nucleo/formato';
 })
 export class NovoLote {
   private readonly http = inject(HttpClient);
+  private readonly dialogos = inject(Dialogos);
   private readonly router = inject(Router);
   protected readonly atual = inject(FazendaAtual);
 
@@ -192,7 +194,7 @@ export class NovoLote {
       await this.atual.recarregarGalpoes();
       await this.router.navigate(this.atual.link('lotes', lote.id));
     } catch (e) {
-      if (confirmouAposAviso(e)) return this.enviar(true);
+      if (await confirmouAposAviso(e, this.dialogos)) return this.enviar(true);
       this.erro.set(mensagemErro(e));
     } finally {
       this.enviando.set(false);

@@ -10,6 +10,7 @@ import {
   NOME_CRITERIO,
 } from '@crista/domain';
 import { firstValueFrom } from 'rxjs';
+import { Dialogos } from '../nucleo/dialogos';
 import { FazendaAtual } from '../fazendas/fazenda-atual';
 import { LoteResumido } from '../lotes/tipos';
 import {
@@ -61,7 +62,7 @@ const vazio = () => ({
   imports: [FormsModule],
   template: `
     @if (erro()) {
-      <p class="alerta" role="alert">{{ erro() }}</p>
+      <p class="aviso" role="alert">{{ erro() }}</p>
     }
     @if (atual.pode('despesa.registrar')) {
       <form class="cartao formulario" (ngSubmit)="enviar()">
@@ -268,6 +269,7 @@ const vazio = () => ({
 })
 export class Despesas implements OnInit {
   private readonly http = inject(HttpClient);
+  private readonly dialogos = inject(Dialogos);
   protected readonly atual = inject(FazendaAtual);
 
   protected readonly hoje = hoje();
@@ -331,7 +333,7 @@ export class Despesas implements OnInit {
       this.dados = vazio();
       await this.carregar();
     } catch (e) {
-      if (confirmouAposAviso(e)) return this.enviar(true);
+      if (await confirmouAposAviso(e, this.dialogos)) return this.enviar(true);
       this.erro.set(mensagemErro(e));
     } finally {
       this.enviando.set(false);
@@ -339,15 +341,16 @@ export class Despesas implements OnInit {
   }
 
   async estornar(d: Despesa): Promise<void> {
-    const motivo = prompt(
-      'Motivo da correção (a despesa continua no histórico como estornada):',
+    const motivo = await this.dialogos.pedirMotivo(
+      'Estornar despesa',
+      'A despesa e o rateio continuam no histórico, riscados, com o motivo.',
     );
-    if (!motivo || motivo.trim().length < 3) return;
+    if (!motivo) return;
     this.erro.set('');
     try {
       await firstValueFrom(
         this.http.post(`${this.atual.url()}/despesas/${d.id}/estornar`, {
-          motivo: motivo.trim(),
+          motivo,
         }),
       );
       await this.carregar();

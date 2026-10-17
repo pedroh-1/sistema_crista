@@ -36,11 +36,11 @@ const NOMES: Partial<Record<string, string>> = {
   imports: [FormsModule, RouterLink],
   template: `
     @if (erro()) {
-      <p class="alerta" role="alert">{{ erro() }}</p>
+      <p class="aviso" role="alert">{{ erro() }}</p>
     }
     @if (fin(); as f) {
       @if (!f.custoPintoInformado) {
-        <p class="alerta">
+        <p class="aviso">
           O custo dos pintos não foi informado no cadastro do lote e está fora
           do custo total.
         </p>

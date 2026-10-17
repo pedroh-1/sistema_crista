@@ -14,7 +14,7 @@ import { ErrosCampo, mensagemErro, validar } from '../nucleo/erros';
       <h1>Criar conta</h1>
       @if (emailEnviado()) {
         <div class="cartao">
-          <p class="alerta sucesso" role="status">Conta criada.</p>
+          <p class="aviso sucesso" role="status">Conta criada.</p>
           <p>
             Enviamos um link de confirmação para
             <strong>{{ emailEnviado() }}</strong
@@ -27,7 +27,7 @@ import { ErrosCampo, mensagemErro, validar } from '../nucleo/erros';
       } @else {
         <form class="cartao formulario" (ngSubmit)="enviar()">
           @if (erro()) {
-            <p class="alerta" role="alert">{{ erro() }}</p>
+            <p class="aviso" role="alert">{{ erro() }}</p>
           }
           <label>
             Nome completo

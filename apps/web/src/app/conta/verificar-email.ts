@@ -16,13 +16,13 @@ import { mensagemErro } from '../nucleo/erros';
             <p>Confirmando seu e-mail…</p>
           }
           @case ('ok') {
-            <p class="alerta sucesso" role="status">
+            <p class="aviso sucesso" role="status">
               E-mail confirmado. Sua conta está ativa.
             </p>
             <p><a class="botao" routerLink="/entrar">Entrar</a></p>
           }
           @default {
-            <p class="alerta" role="alert">{{ erro() }}</p>
+            <p class="aviso" role="alert">{{ erro() }}</p>
           }
         }
       </div>

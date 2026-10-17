@@ -3,6 +3,7 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { pesagemSchema } from '@crista/domain';
 import { firstValueFrom } from 'rxjs';
+import { Dialogos } from '../nucleo/dialogos';
 import { FazendaAtual } from '../fazendas/fazenda-atual';
 import {
   confirmouAposAviso,
@@ -43,10 +44,10 @@ function lerPesos(texto: string): number[] {
   imports: [FormsModule],
   template: `
     @if (erro()) {
-      <p class="alerta" role="alert">{{ erro() }}</p>
+      <p class="aviso" role="alert">{{ erro() }}</p>
     }
     @if (aviso()) {
-      <p class="alerta" [class.sucesso]="!avisoRuim()" role="status">
+      <p class="aviso" [class.sucesso]="!avisoRuim()" role="status">
         {{ aviso() }}
       </p>
     }
@@ -202,6 +203,7 @@ function lerPesos(texto: string): number[] {
 })
 export class AbaPesagens implements OnInit {
   private readonly http = inject(HttpClient);
+  private readonly dialogos = inject(Dialogos);
   private readonly fazenda = inject(FazendaAtual);
   protected readonly lote = inject(LoteAtual);
 
@@ -270,7 +272,7 @@ export class AbaPesagens implements OnInit {
       this.dados = vazio();
       await Promise.all([this.carregar(), this.lote.recarregar()]);
     } catch (e) {
-      if (confirmouAposAviso(e)) return this.enviar(true);
+      if (await confirmouAposAviso(e, this.dialogos)) return this.enviar(true);
       this.erro.set(mensagemErro(e));
     } finally {
       this.enviando.set(false);

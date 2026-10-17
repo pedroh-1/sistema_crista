@@ -32,7 +32,7 @@ const vazio = () => ({
   imports: [FormsModule, DecimalPipe],
   template: `
     @if (erro()) {
-      <p class="alerta" role="alert">{{ erro() }}</p>
+      <p class="aviso" role="alert">{{ erro() }}</p>
     }
     <section class="cartao">
       <div class="cabecalho-secao">

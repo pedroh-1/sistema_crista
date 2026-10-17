@@ -3,6 +3,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { alojamentoSchema } from '@crista/domain';
 import { firstValueFrom } from 'rxjs';
+import { Dialogos } from '../nucleo/dialogos';
 import { FazendaAtual } from '../fazendas/fazenda-atual';
 import {
   confirmouAposAviso,
@@ -26,7 +27,7 @@ import { LoteAtual } from './lote-atual';
           lançamentos do lote começam depois deste registro.
         </p>
         @if (erro()) {
-          <p class="alerta" role="alert">{{ erro() }}</p>
+          <p class="aviso" role="alert">{{ erro() }}</p>
         }
         <div class="grade-2">
           <label>
@@ -90,6 +91,7 @@ import { LoteAtual } from './lote-atual';
 })
 export class FormAlojamento {
   private readonly http = inject(HttpClient);
+  private readonly dialogos = inject(Dialogos);
   protected readonly atual = inject(LoteAtual);
   private readonly fazenda = inject(FazendaAtual);
 
@@ -127,7 +129,7 @@ export class FormAlojamento {
       );
       await this.atual.recarregar();
     } catch (e) {
-      if (confirmouAposAviso(e)) return this.enviar(true);
+      if (await confirmouAposAviso(e, this.dialogos)) return this.enviar(true);
       this.erro.set(mensagemErro(e));
     } finally {
       this.enviando.set(false);

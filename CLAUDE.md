@@ -69,7 +69,10 @@ Monorepo Nx (preset integrado, porque o Angular não aceita project references d
   `npm run lint`, `npm test`, `npm run build` e `npm run test:integracao`.
 - Use `--parallel=1` no Nx: em paralelo a máquina fica sem memória (exit 137).
 - Para parar a API, use `pkill -f '[d]ist/apps/api/main.js'` num comando separado; sem os
-  colchetes o pkill mata o próprio shell (exit 144).
+  colchetes o pkill mata o próprio shell (exit 144). **Esse padrão também derruba o
+  `npm run api` que o usuário deixa aberto no terminal dele** (aconteceu em 17/10/2026). Para
+  uma cópia de teste, suba em outra porta (`API_PORT=3999`), guarde o PID (`$!`) e encerre só
+  esse PID.
 - `npm run demo` cria os dados de demonstração. Contas `gestor@`, `operador@`, `veterinaria@`,
   `produtor@` e `consulta@demo.crista`, senha `crista123`.
 

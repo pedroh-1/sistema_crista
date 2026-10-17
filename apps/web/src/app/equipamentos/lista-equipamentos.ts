@@ -18,7 +18,7 @@ import { CLASSE_PREVENTIVA, Equipamento, formatarDataHora } from './tipos';
   imports: [RouterLink, FormEquipamento],
   template: `
     @if (erro()) {
-      <p class="alerta" role="alert">{{ erro() }}</p>
+      <p class="aviso" role="alert">{{ erro() }}</p>
     }
     <section class="cartao">
       <div class="cabecalho-secao">

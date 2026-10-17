@@ -4,6 +4,7 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { conviteSchema, NOME_PERFIL, Perfil, PERFIS } from '@crista/domain';
 import { firstValueFrom } from 'rxjs';
+import { Dialogos } from '../nucleo/dialogos';
 import { ErrosCampo, mensagemErro, validar } from '../nucleo/erros';
 import { Vinculo } from '../nucleo/tipos';
 import { FazendaAtual } from './fazenda-atual';
@@ -28,10 +29,10 @@ const vazio = () => ({
   imports: [FormsModule, DatePipe],
   template: `
     @if (erro()) {
-      <p class="alerta" role="alert">{{ erro() }}</p>
+      <p class="aviso" role="alert">{{ erro() }}</p>
     }
     @if (aviso()) {
-      <p class="alerta sucesso" role="status">{{ aviso() }}</p>
+      <p class="aviso sucesso" role="status">{{ aviso() }}</p>
     }
     <section class="cartao">
       <h2>Convidar pessoa</h2>
@@ -165,6 +166,7 @@ const vazio = () => ({
 })
 export class Equipe implements OnInit {
   private readonly http = inject(HttpClient);
+  private readonly dialogos = inject(Dialogos);
   protected readonly atual = inject(FazendaAtual);
 
   protected readonly perfis = PERFIS;
@@ -223,7 +225,14 @@ export class Equipe implements OnInit {
   }
 
   async revogar(v: Vinculo): Promise<void> {
-    if (!confirm(`Revogar o acesso de ${v.nome ?? v.email}?`)) return;
+    const confirmou = await this.dialogos.confirmar({
+      titulo: `Revogar o acesso de ${v.nome ?? v.email}?`,
+      mensagem:
+        'A pessoa deixa de ver a fazenda na hora. Para voltar, envie um novo convite.',
+      acao: 'Revogar acesso',
+      perigo: true,
+    });
+    if (!confirmou) return;
     this.erro.set('');
     this.aviso.set('');
     try {

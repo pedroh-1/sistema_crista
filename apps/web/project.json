@@ -21,7 +21,11 @@
             "input": "apps/web/public"
           }
         ],
-        "styles": ["apps/web/src/styles.scss"]
+        "styles": [
+          "@fontsource-variable/public-sans/wght.css",
+          "@fontsource-variable/bricolage-grotesque/wght.css",
+          "apps/web/src/styles.scss"
+        ]
       },
       "configurations": {
         "production": {

@@ -1,12 +1,15 @@
+@if (!dentroDaFazenda()) {
 <header class="topo">
   <a class="marca" routerLink="/fazendas">CRISTA</a>
   @if (sessao.usuario(); as usuario) {
   <div class="usuario">
     <span class="suave">{{ usuario.nome }}</span>
-    <button type="button" class="secundario" (click)="sessao.sair()">
+    <button type="button" class="fantasma pequeno" (click)="sessao.sair()">
       Sair
     </button>
   </div>
   }
 </header>
+}
 <router-outlet />
+<crista-dialogos />

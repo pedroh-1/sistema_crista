@@ -7,8 +7,14 @@ import {
   NOME_CATEGORIA,
 } from '@crista/domain';
 import { firstValueFrom } from 'rxjs';
+import { Dialogos } from '../nucleo/dialogos';
 import { FazendaAtual } from '../fazendas/fazenda-atual';
-import { ErrosCampo, mensagemErro, validar } from '../nucleo/erros';
+import {
+  confirmouAposAviso,
+  ErrosCampo,
+  mensagemErro,
+  validar,
+} from '../nucleo/erros';
 import { formatarData, formatarNumero, hoje } from '../nucleo/formato';
 import { LoteAtual } from './lote-atual';
 import { Carga } from './tipos';
@@ -37,7 +43,7 @@ const cargaVazia = () => ({
   imports: [FormsModule],
   template: `
     @if (erro()) {
-      <p class="alerta" role="alert">{{ erro() }}</p>
+      <p class="aviso" role="alert">{{ erro() }}</p>
     }
 
     @if (lote.lote()?.encerramento; as enc) {
@@ -58,7 +64,7 @@ const cargaVazia = () => ({
           Os valores abaixo ficaram congelados nessa data.
         </p>
         @if (enc.parcial) {
-          <div class="alerta aviso">
+          <div class="aviso atencao">
             <strong>Relatório parcial.</strong> O lote foi encerrado com
             pendências:
             <ul>
@@ -160,7 +166,7 @@ const cargaVazia = () => ({
       <form class="cartao formulario" (ngSubmit)="registrarCarga()">
         <h3>Registrar carga de saída</h3>
         @if (lote.lote()?.resumo?.carenciaAte; as ate) {
-          <p class="alerta">
+          <p class="aviso">
             Aves em carência até {{ data(ate) }}: a saída para abate fica
             bloqueada até lá.
           </p>
@@ -346,6 +352,7 @@ const cargaVazia = () => ({
 })
 export class AbaEncerramento implements OnInit {
   private readonly http = inject(HttpClient);
+  private readonly dialogos = inject(Dialogos);
   protected readonly fazenda = inject(FazendaAtual);
   protected readonly lote = inject(LoteAtual);
 
@@ -412,7 +419,11 @@ export class AbaEncerramento implements OnInit {
     if (!v.ok) return this.erro.set(Object.values(v.erros)[0]);
     if (
       !confirmarParcial &&
-      !confirm('Encerrar o lote? Depois disso ele fica só para consulta.')
+      !(await this.dialogos.confirmar({
+        titulo: 'Encerrar o lote?',
+        mensagem: 'Depois disso ele fica só para consulta.',
+        acao: 'Encerrar lote',
+      }))
     )
       return;
 
@@ -433,11 +444,7 @@ export class AbaEncerramento implements OnInit {
           ? (e.error as { codigo?: string; message?: string })
           : null;
       if (corpo?.codigo === 'PENDENCIAS') {
-        if (
-          confirm(
-            corpo.message ?? 'O lote tem pendências. Encerrar mesmo assim?',
-          )
-        )
+        if (await confirmouAposAviso(e, this.dialogos))
           return this.encerrar(true);
         return;
       }

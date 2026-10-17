@@ -25,7 +25,7 @@ const ATALHOS: { aba: string; rotulo: string; acao: Acao }[] = [
   imports: [RouterLink],
   template: `
     @if (erro()) {
-      <p class="alerta" role="alert">{{ erro() }}</p>
+      <p class="aviso" role="alert">{{ erro() }}</p>
     }
     <section class="cartao">
       <div class="cabecalho-secao">

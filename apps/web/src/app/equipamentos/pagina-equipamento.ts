@@ -12,6 +12,7 @@ import {
   TIPOS_MANUTENCAO,
 } from '@crista/domain';
 import { firstValueFrom } from 'rxjs';
+import { Dialogos } from '../nucleo/dialogos';
 import { FazendaAtual } from '../fazendas/fazenda-atual';
 import { ErrosCampo, mensagemErro, validar } from '../nucleo/erros';
 import { formatarData, formatarNumero, hoje } from '../nucleo/formato';
@@ -50,7 +51,7 @@ const vazio = () => ({
   template: `
     <p><a [routerLink]="atual.link('equipamentos')">← Equipamentos</a></p>
     @if (erro()) {
-      <p class="alerta" role="alert">{{ erro() }}</p>
+      <p class="aviso" role="alert">{{ erro() }}</p>
     }
     @if (equipamento(); as e) {
       <section class="cartao">
@@ -74,7 +75,7 @@ const vazio = () => ({
           />
         } @else {
           @if (e.paradoDesde) {
-            <p class="alerta" role="status">
+            <p class="aviso" role="status">
               ⛔ Parado desde {{ dataHora(e.paradoDesde) }}.
               @if (e.critico) {
                 Equipamento crítico: há um alerta aberto até o retorno.
@@ -388,6 +389,7 @@ const vazio = () => ({
 })
 export class PaginaEquipamento {
   private readonly http = inject(HttpClient);
+  private readonly dialogos = inject(Dialogos);
   protected readonly atual = inject(FazendaAtual);
 
   readonly idEquipamento = input.required<string>();
@@ -486,15 +488,16 @@ export class PaginaEquipamento {
   }
 
   async estornar(m: Manutencao): Promise<void> {
-    const motivo = prompt(
-      'Motivo da correção (a manutenção e a despesa gerada continuam no histórico como estornadas):',
+    const motivo = await this.dialogos.pedirMotivo(
+      'Estornar manutenção',
+      'A manutenção e a despesa gerada continuam no histórico, riscadas, com o motivo.',
     );
-    if (!motivo || motivo.trim().length < 3) return;
+    if (!motivo) return;
     this.erro.set('');
     try {
       await firstValueFrom(
         this.http.post(`${this.url()}/manutencoes/${m.id}/estornar`, {
-          motivo: motivo.trim(),
+          motivo,
         }),
       );
       await this.carregar(this.idEquipamento());

@@ -1,13 +1,25 @@
 import { HttpClient } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { Dialogos } from '../nucleo/dialogos';
 import { FazendaAtual } from '../fazendas/fazenda-atual';
 import { LoteDetalhe } from './tipos';
+
+type EntidadeEstorno = 'baixa' | 'pesagem' | 'racao' | 'ocorrencia' | 'carga';
+
+const NOME_ENTIDADE: Record<EntidadeEstorno, string> = {
+  baixa: 'baixa',
+  pesagem: 'pesagem',
+  racao: 'lançamento de ração',
+  ocorrencia: 'ocorrência',
+  carga: 'carga',
+};
 
 /** Lote aberto, compartilhado entre as abas (fornecido pela página do lote). */
 @Injectable()
 export class LoteAtual {
   private readonly http = inject(HttpClient);
+  private readonly dialogos = inject(Dialogos);
   private readonly fazenda = inject(FazendaAtual);
 
   readonly lote = signal<LoteDetalhe | null>(null);
@@ -39,19 +51,16 @@ export class LoteAtual {
 
   /** Estorna um lançamento pedindo o motivo ao usuário. */
   async estornar(
-    entidade: 'baixa' | 'pesagem' | 'racao' | 'ocorrencia' | 'carga',
+    entidade: EntidadeEstorno,
     idEvento: string,
   ): Promise<boolean> {
-    const motivo = prompt(
-      'Motivo da correção (o lançamento continua no histórico como estornado):',
+    const motivo = await this.dialogos.pedirMotivo(
+      `Estornar ${NOME_ENTIDADE[entidade]}`,
+      'O lançamento continua no histórico, riscado, com o motivo.',
     );
-    if (!motivo || motivo.trim().length < 3) return false;
+    if (!motivo) return false;
     await firstValueFrom(
-      this.http.post(`${this.url()}/estornos`, {
-        entidade,
-        idEvento,
-        motivo: motivo.trim(),
-      }),
+      this.http.post(`${this.url()}/estornos`, { entidade, idEvento, motivo }),
     );
     await this.recarregar();
     return true;

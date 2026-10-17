@@ -1,5 +1,14 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import {
+  afterNextRender,
+  Component,
+  computed,
+  ElementRef,
+  inject,
+  OnInit,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { baixaSchema, NivelAlerta } from '@crista/domain';
 import { firstValueFrom } from 'rxjs';
@@ -22,20 +31,27 @@ const vazio = () => ({
   imports: [FormsModule],
   template: `
     @if (erro()) {
-      <p class="alerta" role="alert">{{ erro() }}</p>
+      <p class="aviso" role="alert">{{ erro() }}</p>
     }
     @if (aviso(); as a) {
-      <p class="alerta" [class.sucesso]="a.nivel === 'normal'" role="status">
+      <p
+        class="aviso"
+        [class.sucesso]="a.nivel === 'normal'"
+        [class.atencao]="a.nivel === 'atencao'"
+        role="status"
+      >
         {{ a.texto }}
       </p>
     }
     @if (podeLancar()) {
       <form class="cartao formulario" (ngSubmit)="enviar()">
-        <h3>Lançar baixa</h3>
-        <p class="suave">
-          Pode lançar várias vezes no mesmo dia: os lançamentos são somados.
-        </p>
-        <div class="grade-2">
+        <div class="cabecalho-secao">
+          <h3>Lançar baixa</h3>
+          <span class="suave"
+            >Vários lançamentos no mesmo dia são somados.</span
+          >
+        </div>
+        <div class="linha-campos">
           <label>
             Data
             <input
@@ -51,6 +67,7 @@ const vazio = () => ({
           <label>
             Mortes
             <input
+              #primeiro
               type="number"
               name="mortes"
               inputmode="numeric"
@@ -71,12 +88,14 @@ const vazio = () => ({
               [(ngModel)]="dados.descartes"
             />
           </label>
-          <label>
+          <label class="causa">
             Causa provável (opcional)
             <input name="causa" [(ngModel)]="dados.causaProvavel" />
           </label>
+          <button type="submit" [disabled]="enviando()">
+            {{ enviando() ? 'Lançando…' : 'Lançar baixa' }}
+          </button>
         </div>
-        <div><button type="submit" [disabled]="enviando()">Lançar</button></div>
       </form>
     }
 
@@ -86,34 +105,37 @@ const vazio = () => ({
         <table class="tabela">
           <thead>
             <tr>
-              <th>Data</th>
-              <th>Mortes</th>
-              <th>Descartes</th>
+              <th class="num">Data</th>
+              <th class="num">Mortes</th>
+              <th class="num">Descartes</th>
               <th>Causa provável</th>
               <th>Lançado por</th>
-              <th></th>
+              <th class="acao"><span class="visivel-leitor">Ações</span></th>
             </tr>
           </thead>
           <tbody>
             @for (b of baixas(); track b.id) {
-              <tr [class.estornado]="b.estorno">
-                <td>{{ data(b.data) }}</td>
-                <td>{{ num(b.mortes) }}</td>
-                <td>{{ num(b.descartes) }}</td>
-                <td>{{ b.causaProvavel ?? '—' }}</td>
-                <td>{{ b.registradoPor ?? '—' }}</td>
+              <tr [class.estornada]="b.estorno">
+                <td class="num riscar">{{ data(b.data) }}</td>
+                <td class="num riscar">{{ num(b.mortes) }}</td>
+                <td class="num riscar">{{ num(b.descartes) }}</td>
                 <td>
+                  <span class="riscar">{{ b.causaProvavel ?? '—' }}</span>
                   @if (b.estorno) {
-                    <span class="etiqueta inativo" [title]="b.estorno.motivo"
-                      >Estornado</span
+                    <span class="motivo-estorno"
+                      >Estornado: {{ b.estorno.motivo }}</span
                     >
-                  } @else if (podeLancar()) {
+                  }
+                </td>
+                <td>{{ b.registradoPor ?? '—' }}</td>
+                <td class="acao">
+                  @if (!b.estorno && podeLancar()) {
                     <button
                       type="button"
-                      class="secundario"
+                      class="fantasma pequeno"
                       (click)="estornar(b)"
                     >
-                      Corrigir
+                      Estornar
                     </button>
                   }
                 </td>
@@ -129,9 +151,13 @@ const vazio = () => ({
     </section>
   `,
   styles: `
-    .estornado td:not(:last-child) {
-      text-decoration: line-through;
-      color: var(--texto-suave);
+    .linha-campos {
+      grid-template-columns: 160px 120px 120px minmax(160px, 1fr) auto;
+    }
+    @media (max-width: 640px) {
+      .linha-campos {
+        grid-template-columns: 1fr;
+      }
     }
   `,
 })
@@ -149,6 +175,8 @@ export class AbaMortalidade implements OnInit {
       this.lote.emAndamento() &&
       !!this.lote.lote()?.alojamento,
   );
+  private readonly primeiro =
+    viewChild<ElementRef<HTMLInputElement>>('primeiro');
   protected dados = vazio();
   protected readonly baixas = signal<Baixa[]>([]);
   protected readonly erros = signal<ErrosCampo>({});
@@ -158,6 +186,13 @@ export class AbaMortalidade implements OnInit {
     nivel: NivelAlerta;
   } | null>(null);
   protected readonly enviando = signal(false);
+
+  constructor() {
+    // Quem abre a aba quer lançar: o foco já vai para Mortes.
+    afterNextRender(() =>
+      this.primeiro()?.nativeElement.focus({ preventScroll: true }),
+    );
+  }
 
   ngOnInit(): Promise<void> {
     return this.carregar();
@@ -193,7 +228,9 @@ export class AbaMortalidade implements OnInit {
         texto: `Baixa lançada. Total do dia ${formatarData(v.dados.data)}: ${r.totalDoDia} aves (${pct}%).${nivel}`,
         nivel: r.nivel,
       });
+      // Pronto para o próximo lançamento: limpa e volta o foco ao primeiro campo.
       this.dados = vazio();
+      this.primeiro()?.nativeElement.focus();
       await Promise.all([this.carregar(), this.lote.recarregar()]);
     } catch (e) {
       this.erro.set(mensagemErro(e));

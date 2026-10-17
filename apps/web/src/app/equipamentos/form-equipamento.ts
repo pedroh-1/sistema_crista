@@ -29,7 +29,7 @@ import { Equipamento } from './tipos';
   template: `
     <form class="formulario" (ngSubmit)="salvar()">
       @if (erro()) {
-        <p class="alerta" role="alert">{{ erro() }}</p>
+        <p class="aviso" role="alert">{{ erro() }}</p>
       }
       <div class="grade-2">
         <label>

@@ -24,7 +24,7 @@ const vazio = () => ({
   imports: [FormsModule],
   template: `
     @if (erro()) {
-      <p class="alerta" role="alert">{{ erro() }}</p>
+      <p class="aviso" role="alert">{{ erro() }}</p>
     }
     @if (podeLancar()) {
       <form class="cartao formulario" (ngSubmit)="enviar()">

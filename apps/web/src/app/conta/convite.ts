@@ -21,7 +21,7 @@ interface DadosConvite {
       <h1>Convite</h1>
       <div class="cartao">
         @if (erro()) {
-          <p class="alerta" role="alert">{{ erro() }}</p>
+          <p class="aviso" role="alert">{{ erro() }}</p>
         }
         @if (convite(); as c) {
           <p>
@@ -31,7 +31,7 @@ interface DadosConvite {
             >.
           </p>
           @if (c.expirado) {
-            <p class="alerta">
+            <p class="aviso">
               Este convite expirou. Peça um novo ao Gestor da fazenda.
             </p>
           } @else if (sessao.logado()) {
@@ -40,7 +40,7 @@ interface DadosConvite {
                 Aceitar convite
               </button>
             } @else {
-              <p class="alerta">
+              <p class="aviso">
                 O convite foi enviado para {{ c.email }}, mas você entrou como
                 {{ sessao.usuario()?.email }}.
                 <button

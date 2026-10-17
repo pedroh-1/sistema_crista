@@ -24,7 +24,7 @@ interface Regra {
   imports: [FormsModule, RouterLink],
   template: `
     @if (erro()) {
-      <p class="alerta" role="alert">{{ erro() }}</p>
+      <p class="aviso" role="alert">{{ erro() }}</p>
     }
     <section class="cartao">
       <h2>Alertas abertos</h2>

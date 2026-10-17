@@ -16,7 +16,7 @@ import { Sessao } from '../nucleo/sessao';
       <h1>Cadastrar fazenda</h1>
       <form class="cartao formulario" (ngSubmit)="enviar()">
         @if (erro()) {
-          <p class="alerta" role="alert">{{ erro() }}</p>
+          <p class="aviso" role="alert">{{ erro() }}</p>
         }
         <label>
           Nome da fazenda
