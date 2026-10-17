@@ -1,4 +1,5 @@
 import {
+  avaliarLimite,
   avesAlojadas,
   CATEGORIA_PINTOS,
   CategoriaDespesa,
@@ -13,6 +14,8 @@ import {
   indisponivel,
   margem,
   margemPercentual,
+  limitesEfetivos,
+  NivelLimite,
   PontoCurva,
   receitaPrevista,
   SituacaoMeta,
@@ -21,7 +24,7 @@ import {
 } from '@crista/domain';
 import { DadosDoLote } from './dados-lote';
 import { numOuNulo } from './lote-contexto';
-import { resumoDoLote } from './resumo';
+import { limiteDe, resumoDoLote } from './resumo';
 
 const ordenadas = (pesagens: DadosDoLote['entrada']['pesagens']) =>
   [...pesagens].sort((a, b) => a.data.localeCompare(b.data));
@@ -38,6 +41,7 @@ export function metaDoLote(dados: DadosDoLote) {
       pesoPadraoG: null,
       desvioCurva: indisponivel('Sem pesagem'),
       situacao: null,
+      nivel: null,
       caPadrao: indisponivel(semCurva ?? 'Sem pesagem'),
       fonteCurva: dados.fonteCurva,
     };
@@ -54,6 +58,14 @@ export function metaDoLote(dados: DadosDoLote) {
     pesoPadraoG,
     desvioCurva: desvio,
     situacao: desvio.disponivel ? situacaoMeta(desvio.valor) : null,
+    /** Nível pelo limite de desvio_peso da fazenda (o mesmo dos alertas). */
+    nivel: desvio.disponivel
+      ? avaliarLimite(
+          desvio.valor,
+          limitesEfetivos('desvio_peso', limiteDe(e, 'desvio_peso'), idade),
+          'abaixo',
+        )
+      : null,
     caPadrao:
       consumoPadrao && pesoPadraoG
         ? disponivel(consumoPadrao / pesoPadraoG)
@@ -69,12 +81,15 @@ export interface PontoPesagem {
   pesoPadraoG: number | null;
   desvioPct: number | null;
   situacao: SituacaoMeta | null;
+  /** Nível pelo limite de desvio_peso da fazenda. */
+  nivel: NivelLimite | null;
   gpdPeriodoG: number | null;
 }
 
 /** UC11: evolução do peso médio contra a curva padrão. */
 export function serieDePeso(dados: DadosDoLote): PontoPesagem[] {
   const e = dados.entrada;
+  const limites = limitesEfetivos('desvio_peso', limiteDe(e, 'desvio_peso'), 0);
   let anterior: { data: string; peso: number } | null = null;
   return ordenadas(e.pesagens).map((p) => {
     const idade = idadeDias(e.dataAlojamento, p.data, e.idadeInicialDias);
@@ -93,6 +108,9 @@ export function serieDePeso(dados: DadosDoLote): PontoPesagem[] {
       pesoPadraoG: padrao,
       desvioPct: desvio.disponivel ? desvio.valor : null,
       situacao: desvio.disponivel ? situacaoMeta(desvio.valor) : null,
+      nivel: desvio.disponivel
+        ? avaliarLimite(desvio.valor, limites, 'abaixo')
+        : null,
       gpdPeriodoG: gpd.disponivel ? gpd.valor : null,
     };
   });

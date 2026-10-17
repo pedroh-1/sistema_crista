@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
-import { FAIXA_META_PCT, NOME_LINHAGEM } from '@crista/domain';
+import { FAIXA_META_PCT, NOME_LINHAGEM, tomDaMeta } from '@crista/domain';
 import { firstValueFrom } from 'rxjs';
 import { mensagemErro } from '../nucleo/erros';
 import { formatarData, formatarNumero } from '../nucleo/formato';
@@ -10,17 +10,14 @@ import {
   SerieGrafico,
 } from '../nucleo/grafico-linhas';
 import { LoteAtual } from './lote-atual';
-import {
-  CLASSE_SITUACAO_META,
-  ICONE_SITUACAO_META,
-  NOME_SITUACAO_META,
-} from './situacao-meta';
+import { Estado, ROTULO_TOM } from '../nucleo/estado';
+import { NOME_SITUACAO_META } from './situacao-meta';
 import { CurvaLote } from './tipos';
 
 /** UC11: evolução do peso médio contra a curva padrão da linhagem. */
 @Component({
   selector: 'crista-aba-curva',
-  imports: [GraficoLinhas],
+  imports: [GraficoLinhas, Estado],
   template: `
     @if (erro()) {
       <p class="aviso" role="alert">{{ erro() }}</p>
@@ -94,12 +91,10 @@ import { CurvaLote } from './tipos';
                   </td>
                   <td>
                     @if (p.situacao) {
-                      <span
-                        class="etiqueta"
-                        [class]="classeSituacao[p.situacao]"
-                        >{{ iconeSituacao[p.situacao] }}
-                        {{ nomeSituacao[p.situacao] }}</span
-                      >
+                      <crista-estado
+                        [tom]="tomDaMeta(p.nivel, p.situacao)"
+                        [texto]="nomeSituacao[p.situacao]"
+                      />
                     } @else {
                       —
                     }
@@ -127,8 +122,7 @@ export class AbaCurva implements OnInit {
 
   protected readonly nomeLinhagem = NOME_LINHAGEM;
   protected readonly nomeSituacao = NOME_SITUACAO_META;
-  protected readonly classeSituacao = CLASSE_SITUACAO_META;
-  protected readonly iconeSituacao = ICONE_SITUACAO_META;
+  protected readonly tomDaMeta = tomDaMeta;
   protected readonly data = formatarData;
   protected readonly num = formatarNumero;
   protected readonly gramas = (v: number) => `${formatarNumero(v)} g`;
@@ -151,13 +145,20 @@ export class AbaCurva implements OnInit {
         id: 'real',
         nome: 'Peso médio',
         cor: 'var(--serie-1)',
-        pontos: c.pesagens.map((p) => ({
-          x: p.idadeDias,
-          y: p.pesoMedioG,
-          nota: p.situacao
-            ? `${ICONE_SITUACAO_META[p.situacao]} ${NOME_SITUACAO_META[p.situacao]}`
-            : undefined,
-        })),
+        pontos: c.pesagens.map((p) => {
+          const tom = tomDaMeta(p.nivel, p.situacao);
+          return {
+            x: p.idadeDias,
+            y: p.pesoMedioG,
+            nota: p.situacao
+              ? `${NOME_SITUACAO_META[p.situacao]}` +
+                (tom === 'atencao' || tom === 'critico'
+                  ? ` (${ROTULO_TOM[tom].toLowerCase()})`
+                  : '')
+              : undefined,
+            tom: tom === 'atencao' || tom === 'critico' ? tom : undefined,
+          };
+        }),
       },
     ];
   });

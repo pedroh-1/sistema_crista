@@ -1,6 +1,5 @@
 import {
   alojamentoSchema,
-  avaliarMortalidadeDia,
   baixaSchema,
   dataFimCarencia,
   motivoRevisaoPesagem,
@@ -76,12 +75,6 @@ describe('schemas do ciclo produtivo', () => {
 describe('regras do ciclo produtivo', () => {
   it('fim da carência soma os dias', () => {
     expect(dataFimCarencia('2026-03-25', 10)).toBe('2026-04-04');
-  });
-
-  it('mortalidade do dia usa limites em dobro na primeira semana', () => {
-    expect(avaliarMortalidadeDia(0.4, 3)).toBe('normal');
-    expect(avaliarMortalidadeDia(0.4, 20)).toBe('atencao');
-    expect(avaliarMortalidadeDia(0.6, 20)).toBe('critico');
   });
 
   it('pede revisão de pesagem com queda de peso ou ganho implausível', () => {

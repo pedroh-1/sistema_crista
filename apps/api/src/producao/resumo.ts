@@ -1,5 +1,5 @@
 import {
-  avaliarMortalidadeDia,
+  avaliarLimite,
   avesAlojadas,
   conversaoAlimentar,
   dataFimCarencia,
@@ -9,7 +9,10 @@ import {
   idadeDias,
   iep,
   Indicador,
+  IndicadorDoLote,
   indisponivel,
+  Limites,
+  limitesEfetivos,
   mortalidadeAcumulada,
   NivelAlerta,
   pesoMedioAmostra,
@@ -28,6 +31,8 @@ export interface EntradaResumo {
   idadeInicialDias: number;
   pesoPintoG: number | null;
   areaUtilM2: number;
+  /** Limites dos alertas que a fazenda configurou; sem eles, valem os padrão. */
+  limites?: Partial<Record<IndicadorDoLote, Limites>>;
   alojamento: { avesRecebidas: number; mortasTransporte: number } | null;
   baixas: { data: string; mortes: number; descartes: number }[];
   pesagens: {
@@ -93,6 +98,9 @@ export function resumoDoLote(e: EntradaResumo) {
         ? disponivel(0)
         : pesoVivoEmEstoqueKg(saldo, pesoMedioG);
   const pesoProduzido = pesoVivoProduzidoKg(pesoEstoque, pesoEntregueKg);
+  const unif = ultima
+    ? uniformidade(ultima.pesos)
+    : indisponivel('Sem pesagem');
   const ca = conversaoAlimentar(
     racaoConsumidaKg(e.movimentosRacao),
     pesoProduzido,
@@ -111,9 +119,14 @@ export function resumoDoLote(e: EntradaResumo) {
     mortalidadeHoje: mortalidadeDoDia(e, alojadas, idade),
     ultimaPesagem: ultima?.data ?? null,
     pesoMedioG: pesoMedio,
-    uniformidade: ultima
-      ? uniformidade(ultima.pesos)
-      : indisponivel('Sem pesagem'),
+    uniformidade: unif,
+    uniformidadeNivel: unif.disponivel
+      ? avaliarLimite(
+          unif.valor,
+          limitesEfetivos('uniformidade', limiteDe(e, 'uniformidade'), idade),
+          'abaixo',
+        )
+      : null,
     gpdMedioG: gpdMedio(pesoMedioG, e.pesoPintoG, idadePesagem),
     pesoVivoEstoqueKg: pesoEstoque,
     racaoConsumidaKg: racaoOuIndisponivel(racaoConsumidaKg(e.movimentosRacao)),
@@ -143,11 +156,22 @@ function mortalidadeDoDia(
   if (saldoInicioDia <= 0)
     return { percentual: indisponivel('Sem aves no lote'), nivel: null };
   const percentual = (doDia / saldoInicioDia) * 100;
+  const limites = limitesEfetivos(
+    'mortalidade_dia',
+    limiteDe(e, 'mortalidade_dia'),
+    idade,
+  );
   return {
     percentual: disponivel(percentual),
-    nivel: avaliarMortalidadeDia(percentual, idade),
+    nivel: avaliarLimite(percentual, limites, 'acima'),
   };
 }
+
+/** Limite configurado pela fazenda para o indicador, ou nulo (vale o padrão). */
+export const limiteDe = (
+  e: Pick<EntradaResumo, 'limites'>,
+  indicador: IndicadorDoLote,
+): Limites | null => e.limites?.[indicador] ?? null;
 
 const racaoOuIndisponivel = (kg: number | null): Indicador =>
   kg === null ? indisponivel('Sem registro de ração') : disponivel(kg);

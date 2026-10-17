@@ -14,8 +14,16 @@ export interface SerieGrafico {
   nome: string;
   /** Cor da linha (token CSS). Ignorada nas séries de referência. */
   cor: string;
-  /** `nota` aparece na dica junto do valor (ex.: nível do alerta). */
-  pontos: { x: number; y: number; nota?: string }[];
+  /**
+   * `nota` aparece na dica junto do valor (ex.: nível do alerta); `tom` pinta o
+   * marcador com a cor do estado, sempre junto de uma nota que diga o mesmo.
+   */
+  pontos: {
+    x: number;
+    y: number;
+    nota?: string;
+    tom?: 'atencao' | 'critico';
+  }[];
   /** Curva padrão: linha cinza, sem marcadores, atrás das outras. */
   referencia?: boolean;
 }
@@ -100,7 +108,7 @@ function escalaY(maximo: number): number[] {
           <line
             class="grade"
             [attr.x1]="margem.esquerda"
-            [attr.x2]="largura() - margem.direita"
+            [attr.x2]="largura() - margemDireita()"
             [attr.y1]="y(t)"
             [attr.y2]="y(t)"
           />
@@ -121,12 +129,12 @@ function escalaY(maximo: number): number[] {
             [attr.y]="altura - margem.base + 18"
             text-anchor="middle"
           >
-            {{ t }}
+            {{ formatoX()(t) }}
           </text>
         }
         <text
           class="eixo"
-          [attr.x]="largura() - margem.direita"
+          [attr.x]="largura() - margemDireita()"
           [attr.y]="altura - 4"
           text-anchor="end"
         >
@@ -173,8 +181,8 @@ function escalaY(maximo: number): number[] {
                 class="marca"
                 [attr.cx]="x(p.x)"
                 [attr.cy]="y(p.y)"
-                r="4"
-                [attr.fill]="s.cor"
+                [attr.r]="p.tom ? 5 : 4"
+                [attr.fill]="p.tom ? corTom[p.tom] : s.cor"
               />
             }
           }
@@ -196,7 +204,7 @@ function escalaY(maximo: number): number[] {
           [style.left.px]="d.esquerda"
           [style.top.px]="margem.topo"
         >
-          <strong>{{ rotuloX() }}: {{ d.x }}</strong>
+          <strong>{{ rotuloX() }}: {{ formatoX()(d.x) }}</strong>
           @for (v of d.valores; track v.nome) {
             <span
               ><i
@@ -342,11 +350,19 @@ export class GraficoLinhas {
   readonly series = input.required<SerieGrafico[]>();
   readonly rotuloX = input('Idade (dias)');
   readonly formatoY = input<(v: number) => string>((v) => String(v));
+  /** Texto das marcas do eixo X e da dica (ex.: dia/mês quando X conta dias). */
+  readonly formatoX = input<(v: number) => string>((v) => String(v));
+  /** Eixo X fixo (ex.: o período inteiro do filtro); sem ele, de 0 ao último ponto. */
+  readonly dominio = input<[number, number] | null>(null);
   readonly descricao = input('Gráfico de linhas');
   readonly faixa = input<FaixaGrafico | null>(null);
   readonly limites = input<LimiteGrafico[]>([]);
 
   protected readonly icone = ICONE_LIMITE;
+  protected readonly corTom = {
+    atencao: 'var(--atencao)',
+    critico: 'var(--critico)',
+  } as const;
 
   protected readonly margem = MARGEM;
   protected readonly altura = ALTURA;
@@ -382,6 +398,12 @@ export class GraficoLinhas {
   protected readonly limitesVisiveis = computed(() =>
     this.limites().filter((l) => l.pontos.length > 0),
   );
+  /** Espaço à direita só para os rótulos na ponta (limites ou 2+ séries). */
+  protected readonly margemDireita = computed(() =>
+    this.limitesVisiveis().length > 0 || this.legenda().length > 1
+      ? MARGEM.direita
+      : 24,
+  );
   protected readonly itensLegenda = computed(
     () =>
       this.legenda().length +
@@ -393,6 +415,8 @@ export class GraficoLinhas {
     this.legenda().flatMap((s) => s.pontos),
   );
   private readonly dominioX = computed(() => {
+    const fixo = this.dominio();
+    if (fixo) return fixo;
     const xs = this.todos().map((p) => p.x);
     return xs.length ? [Math.min(0, ...xs), Math.max(1, ...xs)] : [0, 1];
   });
@@ -409,7 +433,12 @@ export class GraficoLinhas {
   );
   protected readonly ticksX = computed(() => {
     const [min, max] = this.dominioX();
-    const passo = max - min > 35 ? 14 : 7;
+    // Semanas para a idade do lote; períodos longos (visão geral) em passos maiores.
+    const amplitude = max - min;
+    const passo =
+      amplitude > 35
+        ? ([14, 28, 56, 91, 182].find((p) => amplitude / p <= 8) ?? 365)
+        : 7;
     const ticks = [];
     for (let t = Math.ceil(min / passo) * passo; t <= max; t += passo)
       ticks.push(t);
@@ -421,7 +450,7 @@ export class GraficoLinhas {
     return (
       MARGEM.esquerda +
       ((v - min) / (max - min || 1)) *
-        (this.largura() - MARGEM.esquerda - MARGEM.direita)
+        (this.largura() - MARGEM.esquerda - this.margemDireita())
     );
   }
 
@@ -503,7 +532,7 @@ export class GraficoLinhas {
     const caixa = (evento.currentTarget as HTMLElement).getBoundingClientRect();
     const fracao =
       (evento.clientX - caixa.left - MARGEM.esquerda) /
-      (this.largura() - MARGEM.esquerda - MARGEM.direita);
+      (this.largura() - MARGEM.esquerda - this.margemDireita());
     if (fracao < 0 || fracao > 1) return this.foco.set(null);
     // Encaixa na idade com dado mais próxima
     const xs = [...new Set(this.todos().map((p) => p.x))];

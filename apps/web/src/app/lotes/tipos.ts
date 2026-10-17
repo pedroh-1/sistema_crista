@@ -32,6 +32,8 @@ export interface ResumoLote {
   ultimaPesagem: string | null;
   pesoMedioG: Indicador;
   uniformidade: Indicador;
+  /** Nível pelo limite de uniformidade da fazenda (o mesmo dos alertas). */
+  uniformidadeNivel: NivelAlerta | null;
   gpdMedioG: Indicador;
   pesoVivoEstoqueKg: Indicador;
   racaoConsumidaKg: Indicador;
@@ -67,6 +69,8 @@ export interface MetaLote {
   pesoPadraoG: number | null;
   desvioCurva: Indicador;
   situacao: SituacaoMeta | null;
+  /** Nível pelo limite de desvio de peso da fazenda (o mesmo dos alertas). */
+  nivel: NivelAlerta | null;
   caPadrao: Indicador;
   fonteCurva: string | null;
 }
@@ -78,6 +82,7 @@ export interface PontoPesagem {
   pesoPadraoG: number | null;
   desvioPct: number | null;
   situacao: SituacaoMeta | null;
+  nivel: NivelAlerta | null;
   gpdPeriodoG: number | null;
 }
 

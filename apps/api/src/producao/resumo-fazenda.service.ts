@@ -24,58 +24,33 @@ export class ResumoFazendaService {
       ? { OR: [{ galpaoId: null }, { galpaoId: { in: acesso.galpoes } }] }
       : {};
 
-    const [lotes, galpoes, alertas, paradas, manutencoesEstornadas] =
-      await Promise.all([
-        this.prisma.lote.findMany({
-          where: {
-            fazendaId: acesso.fazendaId,
-            situacao: 'em_andamento',
-            ...(restrito && { galpaoId: { in: acesso.galpoes } }),
-          },
-          orderBy: { dataAlojamento: 'asc' },
-        }),
-        this.prisma.galpao.findMany({
-          where: {
-            fazendaId: acesso.fazendaId,
-            situacao: { not: 'inativo' },
-            ...(restrito && { id: { in: acesso.galpoes } }),
-          },
-          select: { situacao: true },
-        }),
-        this.prisma.alerta.findMany({
-          where: {
-            fazendaId: acesso.fazendaId,
-            status: 'aberto',
-            ...galpaoOuFazenda,
-          },
-          select: { loteId: true, criticidade: true },
-        }),
-        this.prisma.manutencao.findMany({
-          where: {
-            fazendaId: acesso.fazendaId,
-            paradaInicio: { not: null },
-            retornoOperacao: null,
-            equipamento: { situacao: { not: 'inativo' }, ...galpaoOuFazenda },
-          },
-          select: {
-            id: true,
-            equipamentoId: true,
-            equipamento: { select: { critico: true } },
-          },
-        }),
-        this.prisma.estorno.findMany({
-          where: { fazendaId: acesso.fazendaId, entidade: 'manutencao' },
-          select: { idEvento: true },
-        }),
-      ]);
-
-    const estornadas = new Set(manutencoesEstornadas.map((e) => e.idEvento));
-    const parados = new Map<string, boolean>();
-    for (const p of paradas) {
-      if (!estornadas.has(p.id)) {
-        parados.set(p.equipamentoId, p.equipamento.critico);
-      }
-    }
+    const [lotes, galpoes, alertas, equipamentosParados] = await Promise.all([
+      this.prisma.lote.findMany({
+        where: {
+          fazendaId: acesso.fazendaId,
+          situacao: 'em_andamento',
+          ...(restrito && { galpaoId: { in: acesso.galpoes } }),
+        },
+        orderBy: { dataAlojamento: 'asc' },
+      }),
+      this.prisma.galpao.findMany({
+        where: {
+          fazendaId: acesso.fazendaId,
+          situacao: { not: 'inativo' },
+          ...(restrito && { id: { in: acesso.galpoes } }),
+        },
+        select: { situacao: true },
+      }),
+      this.prisma.alerta.findMany({
+        where: {
+          fazendaId: acesso.fazendaId,
+          status: 'aberto',
+          ...galpaoOuFazenda,
+        },
+        select: { loteId: true, criticidade: true },
+      }),
+      this.equipamentosParados(acesso),
+    ]);
 
     const resumos = await Promise.all(
       lotes.map(async (lote) => {
@@ -96,6 +71,7 @@ export class ResumoFazendaService {
           pesoMedioG: resumo.pesoMedioG,
           ultimaPesagem: resumo.ultimaPesagem,
           situacaoMeta: meta.situacao,
+          nivelMeta: meta.nivel,
           carenciaAte: resumo.carenciaAte,
           alertas: {
             abertos: doLote.length,
@@ -116,10 +92,43 @@ export class ResumoFazendaService {
         abertos: alertas.length,
         criticos: alertas.filter((a) => a.criticidade === 'critico').length,
       },
-      equipamentosParados: {
-        total: parados.size,
-        criticos: [...parados.values()].filter(Boolean).length,
-      },
+      equipamentosParados,
+    };
+  }
+
+  /** Equipamentos com parada sem retorno (manutenção estornada não conta), só nos galpões do vínculo. */
+  async equipamentosParados(acesso: AcessoFazenda) {
+    const restrito = acesso.galpoes.length > 0;
+    const galpaoOuFazenda = restrito
+      ? { OR: [{ galpaoId: null }, { galpaoId: { in: acesso.galpoes } }] }
+      : {};
+    const [paradas, estornos] = await Promise.all([
+      this.prisma.manutencao.findMany({
+        where: {
+          fazendaId: acesso.fazendaId,
+          paradaInicio: { not: null },
+          retornoOperacao: null,
+          equipamento: { situacao: { not: 'inativo' }, ...galpaoOuFazenda },
+        },
+        select: {
+          id: true,
+          equipamentoId: true,
+          equipamento: { select: { critico: true } },
+        },
+      }),
+      this.prisma.estorno.findMany({
+        where: { fazendaId: acesso.fazendaId, entidade: 'manutencao' },
+        select: { idEvento: true },
+      }),
+    ]);
+    const estornadas = new Set(estornos.map((e) => e.idEvento));
+    const parados = new Map<string, boolean>();
+    for (const p of paradas)
+      if (!estornadas.has(p.id))
+        parados.set(p.equipamentoId, p.equipamento.critico);
+    return {
+      total: parados.size,
+      criticos: [...parados.values()].filter(Boolean).length,
     };
   }
 }

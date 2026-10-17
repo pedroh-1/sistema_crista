@@ -7,21 +7,24 @@ import {
   signal,
 } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { Indicador, NOME_LINHAGEM, NOME_SEXAGEM } from '@crista/domain';
+import {
+  Indicador,
+  NOME_LINHAGEM,
+  NOME_SEXAGEM,
+  tomDaMeta,
+  tomDoNivel,
+} from '@crista/domain';
 import { FazendaAtual } from '../fazendas/fazenda-atual';
 import { ROTULO_CRITICIDADE } from '../nucleo/alertas';
 import { CartaoIndicador } from '../nucleo/cartao-indicador';
+import { ROTULO_TOM } from '../nucleo/estado';
 import { mensagemErro } from '../nucleo/erros';
 import {
   formatarData,
   formatarIndicador,
   formatarNumero,
 } from '../nucleo/formato';
-import {
-  CLASSE_SITUACAO_META,
-  ICONE_SITUACAO_META,
-  NOME_SITUACAO_META,
-} from './situacao-meta';
+import { NOME_SITUACAO_META } from './situacao-meta';
 import { FormAlojamento } from './form-alojamento';
 import { LoteAtual } from './lote-atual';
 
@@ -110,28 +113,20 @@ import { LoteAtual } from './lote-atual';
             [valor]="lote.resumo.mortalidade"
             [casas]="2"
             unidade="%"
-            [tom]="tomMortalidade()"
+            [tom]="tomDoNivel(lote.resumo.mortalidadeHoje.nivel)"
+            [estado]="estadoMortalidadeHoje()"
           >
-            @if (tomMortalidade(); as tom) {
-              <span class="etiqueta" [class]="tom">{{
-                rotuloCriticidade[tom]
-              }}</span>
-            }
             hoje {{ ind(lote.resumo.mortalidadeHoje.percentual, 2, ' %') }}
           </crista-cartao-indicador>
           <crista-cartao-indicador
             nome="Peso médio"
             [valor]="lote.resumo.pesoMedioG"
             unidade="g"
+            [tom]="tomDaMeta(lote.meta.nivel, lote.meta.situacao)"
+            [estado]="
+              lote.meta.situacao ? nomeSituacao[lote.meta.situacao] : ''
+            "
           >
-            @if (lote.meta.situacao) {
-              <span
-                class="etiqueta"
-                [class]="classeSituacao[lote.meta.situacao]"
-                >{{ iconeSituacao[lote.meta.situacao] }}
-                {{ nomeSituacao[lote.meta.situacao] }}</span
-              >
-            }
             @if (lote.meta.pesoPadraoG) {
               padrão {{ num(lote.meta.pesoPadraoG) }} g
             }
@@ -147,6 +142,7 @@ import { LoteAtual } from './lote-atual';
             [valor]="lote.resumo.uniformidade"
             [casas]="1"
             unidade="%"
+            [tom]="tomDoNivel(lote.resumo.uniformidadeNivel)"
           >
             na última pesagem
           </crista-cartao-indicador>
@@ -255,8 +251,14 @@ export class PaginaLote {
   protected readonly ind = formatarIndicador;
   protected readonly erro = signal('');
 
-  protected readonly classeSituacao = CLASSE_SITUACAO_META;
-  protected readonly iconeSituacao = ICONE_SITUACAO_META;
+  protected readonly tomDoNivel = tomDoNivel;
+  protected readonly tomDaMeta = tomDaMeta;
+  /** Selo do cartão de mortalidade: a classificação é a do dia, pelo limite da fazenda. */
+  protected readonly estadoMortalidadeHoje = computed(() => {
+    const nivel = this.atual.lote()?.resumo.mortalidadeHoje.nivel;
+    if (nivel === 'normal') return 'Hoje dentro do limite';
+    return nivel ? `Hoje: ${ROTULO_TOM[nivel].toLowerCase()}` : '';
+  });
   /** Nível da mortalidade de hoje, quando pede atenção. */
   protected readonly tomMortalidade = computed(() => {
     const nivel = this.atual.lote()?.resumo.mortalidadeHoje.nivel;

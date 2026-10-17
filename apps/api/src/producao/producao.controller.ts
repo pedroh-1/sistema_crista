@@ -17,10 +17,12 @@ import {
   encerramentoSchema,
   FORMATOS_RELATORIO,
   estornoSchema,
+  filtroVisaoGeralSchema,
   loteSchema,
   movimentoRacaoSchema,
   pesagemSchema,
   precoReferenciaSchema,
+  relatorioFazendaSchema,
 } from '@crista/domain';
 import { z } from 'zod';
 import { ZodPipe } from '../comum/zod.pipe';
@@ -33,8 +35,10 @@ import {
 import { EncerramentoService } from './encerramento.service';
 import { ENTIDADES_EVENTO, EventosService } from './eventos.service';
 import { LotesService } from './lotes.service';
+import { RelatorioFazendaService } from './relatorio-fazenda.service';
 import { RelatorioService } from './relatorio.service';
 import { ResumoFazendaService } from './resumo-fazenda.service';
+import { VisaoGeralService } from './visao-geral.service';
 
 const formatoSchema = z.object({
   formato: z.enum(FORMATOS_RELATORIO).default('pdf'),
@@ -286,5 +290,37 @@ export class ResumoFazendaController {
   @Get()
   resumo(@Acesso() acesso: AcessoFazenda) {
     return this.resumos.resumo(acesso);
+  }
+}
+
+/** Visão geral da fazenda e o relatório dela, com o mesmo filtro (docs/08-design.md). */
+@Controller('fazendas/:idFazenda/visao-geral')
+@UseGuards(AcessoFazendaGuard)
+export class VisaoGeralController {
+  constructor(
+    private readonly visoes: VisaoGeralService,
+    private readonly relatorios: RelatorioFazendaService,
+  ) {}
+
+  @Get()
+  visao(
+    @Acesso() acesso: AcessoFazenda,
+    @Query(new ZodPipe(filtroVisaoGeralSchema))
+    filtro: z.output<typeof filtroVisaoGeralSchema>,
+  ) {
+    return this.visoes.visao(acesso, filtro);
+  }
+
+  @Get('relatorio')
+  async relatorio(
+    @Acesso() acesso: AcessoFazenda,
+    @Query(new ZodPipe(relatorioFazendaSchema))
+    filtro: z.output<typeof relatorioFazendaSchema>,
+  ) {
+    const r = await this.relatorios.gerar(acesso, filtro);
+    return new StreamableFile(r.conteudo, {
+      type: r.tipo,
+      disposition: `attachment; filename="${r.nome}"`,
+    });
   }
 }

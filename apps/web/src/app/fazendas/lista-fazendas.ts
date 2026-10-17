@@ -1,26 +1,30 @@
 import { HttpClient } from '@angular/common/http';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { Indicador, NOME_LINHAGEM, NOME_PERFIL } from '@crista/domain';
-import { firstValueFrom } from 'rxjs';
 import {
-  CLASSE_SITUACAO_META,
-  ICONE_SITUACAO_META,
-  NOME_SITUACAO_META,
-} from '../lotes/situacao-meta';
+  Indicador,
+  NOME_LINHAGEM,
+  NOME_PERFIL,
+  tomDaMeta,
+  tomDoNivel,
+} from '@crista/domain';
+import { firstValueFrom } from 'rxjs';
+import { NOME_SITUACAO_META } from '../lotes/situacao-meta';
+import { Estado } from '../nucleo/estado';
+import { Icone } from '../nucleo/icone';
 import { mensagemErro } from '../nucleo/erros';
 import {
   formatarData,
   formatarIndicador,
   formatarNumero,
 } from '../nucleo/formato';
-import { LoteNoResumo, ResumoFazenda } from '../nucleo/tipos';
+import { ResumoFazenda } from '../nucleo/tipos';
 import { Sessao } from '../nucleo/sessao';
 
 /** Página inicial: cada fazenda com os lotes em andamento e o que pede atenção hoje. */
 @Component({
   selector: 'crista-lista-fazendas',
-  imports: [RouterLink],
+  imports: [RouterLink, Estado, Icone],
   template: `
     <main class="pagina">
       <header class="cabecalho-secao">
@@ -73,7 +77,9 @@ import { Sessao } from '../nucleo/sessao';
                 <dd>
                   @if (r.alertas.abertos > 0) {
                     <a [routerLink]="['/fazendas', fazenda.id, 'alertas']"
-                      >{{ r.alertas.criticos > 0 ? '‼' : '⚠' }}
+                      ><crista-icone
+                        [nome]="r.alertas.criticos > 0 ? 'critico' : 'atencao'"
+                      />
                       {{ r.alertas.abertos }}</a
                     >
                     @if (r.alertas.criticos > 0) {
@@ -85,7 +91,7 @@ import { Sessao } from '../nucleo/sessao';
                       >
                     }
                   } @else {
-                    <span class="ok">✓ 0</span>
+                    <span class="ok"><crista-icone nome="ok" /> 0</span>
                   }
                 </dd>
               </div>
@@ -100,7 +106,13 @@ import { Sessao } from '../nucleo/sessao';
                 <dd>
                   @if (r.equipamentosParados.total > 0) {
                     <a [routerLink]="['/fazendas', fazenda.id, 'equipamentos']"
-                      >{{ r.equipamentosParados.criticos > 0 ? '‼' : '⚠' }}
+                      ><crista-icone
+                        [nome]="
+                          r.equipamentosParados.criticos > 0
+                            ? 'critico'
+                            : 'atencao'
+                        "
+                      />
                       {{ r.equipamentosParados.total }}</a
                     >
                     @if (r.equipamentosParados.criticos > 0) {
@@ -114,7 +126,7 @@ import { Sessao } from '../nucleo/sessao';
                       >
                     }
                   } @else {
-                    <span class="ok">✓ 0</span>
+                    <span class="ok"><crista-icone nome="ok" /> 0</span>
                   }
                 </dd>
               </div>
@@ -171,18 +183,13 @@ import { Sessao } from '../nucleo/sessao';
                           class="num"
                           [attr.title]="motivo(lote.mortalidadeHoje.percentual)"
                         >
-                          @if (tomMortalidadeHoje(lote); as tom) {
-                            <span class="etiqueta" [class]="tom"
-                              >{{ tom === 'critico' ? '‼' : '⚠' }}
-                              {{
-                                indicador(
-                                  lote.mortalidadeHoje.percentual,
-                                  2,
-                                  '%'
-                                )
-                              }}</span
-                            >
-                          } @else {
+                          <crista-estado
+                            [tom]="tomDoNivel(lote.mortalidadeHoje.nivel)"
+                            [texto]="
+                              indicador(lote.mortalidadeHoje.percentual, 2, '%')
+                            "
+                          />
+                          @if (!lote.mortalidadeHoje.nivel) {
                             {{
                               indicador(lote.mortalidadeHoje.percentual, 2, '%')
                             }}
@@ -198,12 +205,10 @@ import { Sessao } from '../nucleo/sessao';
                         </td>
                         <td>
                           @if (lote.situacaoMeta; as s) {
-                            <span
-                              class="etiqueta"
-                              [class]="classeSituacaoMeta[s]"
-                              >{{ iconeSituacaoMeta[s] }}
-                              {{ nomeSituacaoMeta[s] }}</span
-                            >
+                            <crista-estado
+                              [tom]="tomDaMeta(lote.nivelMeta, s)"
+                              [texto]="nomeSituacaoMeta[s]"
+                            />
                           } @else {
                             <span class="suave">Sem pesagem</span>
                           }
@@ -219,7 +224,14 @@ import { Sessao } from '../nucleo/sessao';
                                 fazenda.id,
                                 'alertas',
                               ]"
-                              >{{ lote.alertas.criticos > 0 ? '‼' : '⚠' }}
+                              ><crista-icone
+                                [nome]="
+                                  lote.alertas.criticos > 0
+                                    ? 'critico'
+                                    : 'atencao'
+                                "
+                                [tamanho]="13"
+                              />
                               {{ lote.alertas.abertos }}</a
                             >
                           } @else {
@@ -367,8 +379,8 @@ export class ListaFazendas implements OnInit {
   protected readonly nomePerfil = NOME_PERFIL;
   protected readonly nomeLinhagem = NOME_LINHAGEM;
   protected readonly nomeSituacaoMeta = NOME_SITUACAO_META;
-  protected readonly classeSituacaoMeta = CLASSE_SITUACAO_META;
-  protected readonly iconeSituacaoMeta = ICONE_SITUACAO_META;
+  protected readonly tomDoNivel = tomDoNivel;
+  protected readonly tomDaMeta = tomDaMeta;
   protected readonly resumos = signal<Partial<Record<string, ResumoFazenda>>>(
     {},
   );
@@ -386,13 +398,6 @@ export class ListaFazendas implements OnInit {
 
   protected motivo(i: Indicador): string | null {
     return i.disponivel ? null : i.motivo;
-  }
-
-  protected tomMortalidadeHoje(
-    lote: LoteNoResumo,
-  ): 'critico' | 'atencao' | null {
-    const nivel = lote.mortalidadeHoje.nivel;
-    return nivel === 'critico' || nivel === 'atencao' ? nivel : null;
   }
 
   private async carregar(id: string): Promise<void> {

@@ -1,5 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { CategoriaDespesa, hojeISO, PontoCurva } from '@crista/domain';
+import {
+  CategoriaDespesa,
+  hojeISO,
+  INDICADORES_DO_LOTE,
+  IndicadorDoLote,
+  PontoCurva,
+} from '@crista/domain';
 import { Galpao, Lote } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoteContexto, numOuNulo, paraISO } from './lote-contexto';
@@ -49,6 +55,7 @@ export class DadosLote {
       rateios,
       curva,
       cargas,
+      regras,
     ] = await Promise.all([
       this.prisma.galpao.findUniqueOrThrow({ where: { id: lote.galpaoId } }),
       this.prisma.alojamento.findUnique({ where: { loteId } }),
@@ -67,6 +74,12 @@ export class DadosLote {
       }),
       this.curvaDa(lote),
       this.prisma.saidaCarga.findMany({ where: { loteId, ...valido } }),
+      this.prisma.regraAlerta.findMany({
+        where: {
+          fazendaId: lote.fazendaId,
+          indicador: { in: [...INDICADORES_DO_LOTE] },
+        },
+      }),
     ]);
 
     return {
@@ -78,6 +91,15 @@ export class DadosLote {
         idadeInicialDias: lote.idadeInicialDias,
         pesoPintoG: numOuNulo(lote.pesoPintoG),
         areaUtilM2: Number(galpao.areaUtilM2),
+        limites: Object.fromEntries(
+          regras.map((r) => [
+            r.indicador as IndicadorDoLote,
+            {
+              atencao: Number(r.limiteAtencao),
+              critico: Number(r.limiteCritico),
+            },
+          ]),
+        ),
         alojamento,
         cargas: cargas.map((c) => ({
           data: paraISO(c.data),

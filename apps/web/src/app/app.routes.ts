@@ -48,7 +48,12 @@ export const appRoutes: Route[] = [
           import('./fazendas/pagina-fazenda').then((m) => m.PaginaFazenda),
         title: 'Fazenda · CRISTA',
         children: [
-          { path: '', pathMatch: 'full', redirectTo: 'lotes' },
+          { path: '', pathMatch: 'full', redirectTo: 'visao-geral' },
+          {
+            path: 'visao-geral',
+            loadComponent: () =>
+              import('./fazendas/visao-geral').then((m) => m.VisaoGeralPagina),
+          },
           {
             path: 'lotes',
             loadComponent: () =>

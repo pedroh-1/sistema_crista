@@ -14,6 +14,7 @@ import {
   NOME_CATEGORIA,
 } from '@crista/domain';
 import { firstValueFrom } from 'rxjs';
+import { salvarArquivo } from '../nucleo/arquivo';
 import { Dialogos } from '../nucleo/dialogos';
 import { FazendaAtual } from '../fazendas/fazenda-atual';
 import {
@@ -490,12 +491,10 @@ export class AbaEncerramento implements OnInit {
           responseType: 'blob',
         }),
       );
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `encerramento-${this.lote.lote()?.codigo ?? 'lote'}.${formato}`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      salvarArquivo(
+        blob,
+        `encerramento-${this.lote.lote()?.codigo ?? 'lote'}.${formato}`,
+      );
     } catch (e) {
       this.erro.set(mensagemErro(e));
     }

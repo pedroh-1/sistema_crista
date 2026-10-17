@@ -2,13 +2,14 @@ import { Component, effect, inject, input, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { NOME_PERFIL } from '@crista/domain';
 import { mensagemErro } from '../nucleo/erros';
+import { Icone } from '../nucleo/icone';
 import { Sessao } from '../nucleo/sessao';
 import { FazendaAtual } from './fazenda-atual';
 
 /** Leiaute da fazenda: menu lateral fixo (Design System, Navegacao) e o conteúdo à direita. */
 @Component({
   selector: 'crista-pagina-fazenda',
-  imports: [RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, Icone],
   providers: [FazendaAtual],
   template: `
     <div class="leiaute">
@@ -41,9 +42,14 @@ import { FazendaAtual } from './fazenda-atual';
           </details>
 
           <nav aria-label="Fazenda">
-            <a routerLink="lotes" routerLinkActive="ativa">Lotes</a>
+            <a routerLink="visao-geral" routerLinkActive="ativa"
+              ><crista-icone nome="visao-geral" /><span>Visão geral</span></a
+            >
+            <a routerLink="lotes" routerLinkActive="ativa"
+              ><crista-icone nome="lotes" /><span>Lotes</span></a
+            >
             <a routerLink="alertas" routerLinkActive="ativa">
-              Alertas
+              <crista-icone nome="alertas" /><span>Alertas</span>
               @if (atual.alertasAbertos().length > 0) {
                 <span
                   class="contador"
@@ -53,19 +59,27 @@ import { FazendaAtual } from './fazenda-atual';
               }
             </a>
             @if (atual.pode('painel.filtrar')) {
-              <a routerLink="painel" routerLinkActive="ativa">Painel</a>
+              <a routerLink="painel" routerLinkActive="ativa"
+                ><crista-icone nome="comparar" /><span>Comparar lotes</span></a
+              >
             }
             @if (atual.pode('financeiro.ver')) {
               <span class="grupo">Custos</span>
-              <a routerLink="despesas" routerLinkActive="ativa">Despesas</a>
+              <a routerLink="despesas" routerLinkActive="ativa"
+                ><crista-icone nome="despesas" /><span>Despesas</span></a
+              >
             }
             <span class="grupo">Estrutura</span>
-            <a routerLink="galpoes" routerLinkActive="ativa">Galpões</a>
+            <a routerLink="galpoes" routerLinkActive="ativa"
+              ><crista-icone nome="galpoes" /><span>Galpões</span></a
+            >
             <a routerLink="equipamentos" routerLinkActive="ativa"
-              >Equipamentos</a
+              ><crista-icone nome="equipamentos" /><span>Equipamentos</span></a
             >
             @if (atual.pode('vinculo.gerenciar')) {
-              <a routerLink="equipe" routerLinkActive="ativa">Equipe</a>
+              <a routerLink="equipe" routerLinkActive="ativa"
+                ><crista-icone nome="equipe" /><span>Equipe</span></a
+              >
             }
           </nav>
         }
@@ -77,7 +91,7 @@ import { FazendaAtual } from './fazenda-atual';
               class="fantasma pequeno"
               (click)="sessao.sair()"
             >
-              Sair
+              <crista-icone nome="sair" [tamanho]="14" /> Sair
             </button>
           </div>
         }
@@ -183,13 +197,21 @@ import { FazendaAtual } from './fazenda-atual';
     nav a {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: var(--espaco-2);
+      gap: var(--espaco-3);
       padding: var(--espaco-2) var(--espaco-3);
       border-radius: var(--raio-sm);
       color: var(--texto);
       text-decoration: none;
       font-weight: 500;
+    }
+    nav a .contador {
+      margin-left: auto;
+    }
+    nav a crista-icone {
+      color: var(--texto-suave);
+    }
+    nav a.ativa crista-icone {
+      color: var(--primaria);
     }
     nav a:hover {
       background: var(--superficie);
@@ -210,9 +232,13 @@ import { FazendaAtual } from './fazenda-atual';
       font-size: 13px;
       color: var(--texto-suave);
     }
+    /* O conteúdo usa toda a largura ao lado do menu (antes ficava preso em 1264 px à
+       esquerda, com uma faixa vazia à direita em telas largas). Só em monitores muito
+       largos ele para de crescer, centralizado, para as linhas não ficarem longas demais. */
     .conteudo {
       width: 100%;
-      max-width: calc(var(--largura-conteudo) + 2 * var(--espaco-6));
+      max-width: var(--largura-maxima);
+      margin: 0 auto;
       padding: var(--espaco-6) var(--espaco-6) var(--espaco-7);
     }
     @media (max-width: 640px) {

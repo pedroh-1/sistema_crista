@@ -201,20 +201,6 @@ export function dataFimCarencia(data: string, carenciaDias: number): string {
 
 export type NivelAlerta = 'normal' | 'atencao' | 'critico';
 
-/**
- * Mortalidade do dia contra os limites provisórios do doc 06: 0,3% (atenção) e
- * 0,5% (crítico), em dobro na primeira semana. Suposição a validar com o veterinário.
- */
-export function avaliarMortalidadeDia(
-  percentualDia: number,
-  idadeDias: number,
-): NivelAlerta {
-  const fator = idadeDias <= 7 ? 2 : 1;
-  if (percentualDia >= 0.5 * fator) return 'critico';
-  if (percentualDia >= 0.3 * fator) return 'atencao';
-  return 'normal';
-}
-
 /** GPD acima disso entre duas pesagens é improvável em frango de corte. */
 export const GPD_MAXIMO_PLAUSIVEL_G = 120;
 

@@ -1,4 +1,11 @@
-import { Indicador, NivelAlerta, Perfil } from '@crista/domain';
+import {
+  Indicador,
+  IndicadoresFazenda,
+  NivelAlerta,
+  Perfil,
+  PontoMortalidadeFazenda,
+  SituacaoFiltro,
+} from '@crista/domain';
 
 export interface Usuario {
   id: string;
@@ -56,6 +63,7 @@ export interface LoteNoResumo {
   pesoMedioG: Indicador;
   ultimaPesagem: string | null;
   situacaoMeta: 'abaixo' | 'dentro' | 'acima' | null;
+  nivelMeta: NivelAlerta | null;
   carenciaAte: string | null;
   alertas: { abertos: number; criticos: number };
 }
@@ -67,4 +75,70 @@ export interface ResumoFazenda {
   galpoes: { total: number; ocupados: number };
   alertas: { abertos: number; criticos: number };
   equipamentosParados: { total: number; criticos: number };
+}
+
+/** Ponto do resumo gerencial da visão geral, já ordenado (crítico primeiro). */
+export interface PontoAtencao {
+  tom: 'critico' | 'atencao' | 'info' | 'sucesso';
+  texto: string;
+  link:
+    | { tipo: 'lote'; id: string }
+    | { tipo: 'alertas' }
+    | { tipo: 'equipamentos' }
+    | null;
+}
+
+/** Lote na visão geral, como estava no fim do período (ou no encerramento). */
+export interface LoteNaVisao {
+  id: string;
+  codigo: string;
+  galpao: string;
+  galpaoId: string;
+  linhagem: LoteNoResumo['linhagem'];
+  situacao: 'em_andamento' | 'encerrado' | 'cancelado';
+  dataAlojamento: string;
+  dataEncerramento: string | null;
+  encerramentoParcial: boolean;
+  idadeDias: number;
+  avesAlojadas: number | null;
+  saldoAves: number | null;
+  baixasAcumuladas: number;
+  mortalidade: Indicador;
+  mortalidadeHoje: { percentual: Indicador; nivel: NivelAlerta | null } | null;
+  pesoMedioG: Indicador;
+  desvioCurva: Indicador;
+  situacaoMeta: LoteNoResumo['situacaoMeta'];
+  nivelMeta: NivelAlerta | null;
+  uniformidade: Indicador;
+  uniformidadeNivel: NivelAlerta | null;
+  conversaoAlimentar: Indicador;
+  iep: Indicador;
+  carenciaAte: string | null;
+  alertas: { abertos: number; criticos: number };
+  financeiro: {
+    custoTotal: number;
+    custoPorKg: Indicador;
+    margem: Indicador;
+  } | null;
+}
+
+/** GET fazendas/:id/visao-geral: tudo com o mesmo filtro do relatório. */
+export interface VisaoGeral {
+  fazenda: { id: string; nome: string; municipio: string; uf: string };
+  periodo: { de: string; ate: string };
+  filtro: {
+    galpao: string | null;
+    lote: string | null;
+    situacao: SituacaoFiltro;
+  };
+  financeiroVisivel: boolean;
+  indicadores: IndicadoresFazenda;
+  alertas: { abertos: number; criticos: number };
+  mortalidadeDiaria: PontoMortalidadeFazenda[];
+  lotes: LoteNaVisao[];
+  custos: {
+    porCategoria: { categoria: string; valor: number; percentual: number }[];
+    porMes: { mes: string; valor: number }[];
+  } | null;
+  atencao: PontoAtencao[];
 }

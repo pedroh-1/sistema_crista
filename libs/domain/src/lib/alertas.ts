@@ -129,6 +129,8 @@ export interface PontoMortalidadeDia {
   idadeDias: number;
   /** Mortes + descartes do dia. */
   baixas: number;
+  /** Saldo no início do dia, base do percentual. */
+  avesInicioDia: number;
   percentual: number;
   /** Limites que valiam naquela idade (o padrão dobra na primeira semana). */
   limites: Limites;
@@ -172,6 +174,7 @@ export function serieMortalidadeDia(
       data,
       idadeDias: idade,
       baixas,
+      avesInicioDia: saldoInicioDia,
       percentual,
       limites,
       nivel: avaliarLimite(percentual, limites, 'acima'),

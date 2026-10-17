@@ -1,7 +1,5 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import {
-  CategoriaDespesa,
-  NOME_CATEGORIA,
   NOME_LINHAGEM,
   NOME_TIPO_OCORRENCIA,
   pode,
@@ -12,24 +10,11 @@ import PDFDocument from 'pdfkit';
 import { AcessoFazenda } from '../fazendas/acesso-fazenda.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { EncerramentoService } from './encerramento.service';
+import { br, brl, nomeCategoria, num } from './formato';
 import { ResultadoEncerramento } from './indicadores';
 import { LoteContexto, paraISO } from './lote-contexto';
 
 const MARGEM = 48;
-const br = (iso: string) => iso.split('-').reverse().join('/');
-const num = (v: number | null | undefined, casas = 0) =>
-  v == null
-    ? '—'
-    : v.toLocaleString('pt-BR', {
-        minimumFractionDigits: casas,
-        maximumFractionDigits: casas,
-      });
-const brl = (v: number | null | undefined) =>
-  v == null
-    ? '—'
-    : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-const nomeCategoria = (c: string) =>
-  NOME_CATEGORIA[c as CategoriaDespesa] ?? (c === 'pintos' ? 'Pintos' : c);
 
 interface DadosRelatorio {
   fazenda: { nome: string; documento: string; municipio: string; uf: string };

@@ -78,7 +78,18 @@ const NOMES: Partial<Record<string, string>> = {
           nome="Margem prevista"
           [valor]="f.margem"
           [formato]="brl"
-          [tom]="f.margem.disponivel && f.margem.valor < 0 ? 'critico' : null"
+          [tom]="
+            f.margem.disponivel
+              ? f.margem.valor < 0
+                ? 'critico'
+                : 'sucesso'
+              : null
+          "
+          [estado]="
+            f.margem.disponivel && f.margem.valor < 0
+              ? 'Prejuízo previsto'
+              : 'Lucro previsto'
+          "
         >
           @if (f.margemPercentual.disponivel) {
             {{ num(f.margemPercentual.valor, 1) }} % da receita

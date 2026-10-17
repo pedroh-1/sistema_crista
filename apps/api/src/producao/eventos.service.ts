@@ -7,10 +7,11 @@ import {
 import {
   Acao,
   amostraMinima,
-  avaliarMortalidadeDia,
+  avaliarLimite,
   avesAlojadas,
   baixaSchema,
   idadeDias,
+  limitesEfetivos,
   motivoRevisaoPesagem,
   movimentoRacaoSchema,
   pesagemSchema,
@@ -144,6 +145,25 @@ export class EventosService {
       dados.data,
       lote.idadeInicialDias,
     );
+    // O mesmo limite do alerta (UC16): o configurado pela fazenda, ou o padrão da idade.
+    const regra = await this.prisma.regraAlerta.findUnique({
+      where: {
+        fazendaId_indicador: {
+          fazendaId: acesso.fazendaId,
+          indicador: 'mortalidade_dia',
+        },
+      },
+    });
+    const limites = limitesEfetivos(
+      'mortalidade_dia',
+      regra
+        ? {
+            atencao: Number(regra.limiteAtencao),
+            critico: Number(regra.limiteCritico),
+          }
+        : null,
+      idade,
+    );
 
     return {
       id: baixa.id,
@@ -151,7 +171,7 @@ export class EventosService {
       totalDoDia: totalDia,
       saldoAves: saldo - nova,
       mortalidadeDoDia: percentualDia,
-      nivel: avaliarMortalidadeDia(percentualDia, idade),
+      nivel: avaliarLimite(percentualDia, limites, 'acima'),
     };
   }
 

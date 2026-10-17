@@ -64,7 +64,8 @@
 
   /* Leiaute */
   --largura-menu: 248px;
-  --largura-conteudo: 1200px;
+  /* Conteúdo ao lado do menu: ocupa a tela toda até aqui, depois centraliza. */
+  --largura-maxima: 1760px;
   --altura-controle: 40px;
 }
 
@@ -138,7 +139,7 @@ a {
 /* ---------- Páginas ---------- */
 
 .pagina {
-  max-width: var(--largura-conteudo);
+  max-width: var(--largura-maxima);
   margin: 0 auto;
   padding: var(--espaco-6) var(--espaco-6) var(--espaco-7);
 }
@@ -608,7 +609,8 @@ button,
 .indicadores {
   display: grid;
   gap: var(--espaco-4);
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  /* auto-fit: os cartões esticam para ocupar a linha, sem colunas vazias à direita. */
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   margin-bottom: var(--espaco-4);
 }
 

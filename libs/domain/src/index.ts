@@ -8,3 +8,4 @@ export * from './lib/producao';
 export * from './lib/custos';
 export * from './lib/alertas';
 export * from './lib/equipamentos';
+export * from './lib/visao-geral';
