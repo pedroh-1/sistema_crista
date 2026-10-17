@@ -21,7 +21,7 @@ import {
   CLASSE_SITUACAO_META,
   ICONE_SITUACAO_META,
   NOME_SITUACAO_META,
-} from './aba-curva';
+} from './situacao-meta';
 import { FormAlojamento } from './form-alojamento';
 import { LoteAtual } from './lote-atual';
 

@@ -5,42 +5,48 @@ import { Router, RouterLink } from '@angular/router';
 import { fazendaSchema } from '@crista/domain';
 import { firstValueFrom } from 'rxjs';
 import { ErrosCampo, mensagemErro, validar } from '../nucleo/erros';
+import { PrimeiroCampo } from '../nucleo/primeiro-campo';
 import { Sessao } from '../nucleo/sessao';
 
 @Component({
   selector: 'crista-nova-fazenda',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, PrimeiroCampo],
   template: `
-    <main class="pagina">
-      <p><a routerLink="/fazendas">← Minhas fazendas</a></p>
+    <main class="pagina estreita">
+      <nav class="trilha" aria-label="Caminho">
+        <a routerLink="/fazendas">Minhas fazendas</a>
+        <span aria-hidden="true">/</span><span>Cadastrar fazenda</span>
+      </nav>
       <h1>Cadastrar fazenda</h1>
       <form class="cartao formulario" (ngSubmit)="enviar()">
         @if (erro()) {
           <p class="aviso" role="alert">{{ erro() }}</p>
         }
-        <label>
-          Nome da fazenda
-          <input name="nome" [(ngModel)]="dados.nome" />
-          @if (erros()['nome']) {
-            <span class="erro-campo">{{ erros()['nome'] }}</span>
-          }
-        </label>
-        <label>
-          CPF ou CNPJ do produtor
-          <input
-            name="documento"
-            inputmode="numeric"
-            [(ngModel)]="dados.documento"
-          />
-          @if (erros()['documento']) {
-            <span class="erro-campo">{{ erros()['documento'] }}</span>
-          }
-        </label>
+        <div class="linha-campos">
+          <label>
+            Nome da fazenda
+            <input cristaPrimeiroCampo name="nome" [(ngModel)]="dados.nome" />
+            @if (erros()['nome']) {
+              <span class="erro-campo">{{ erros()['nome'] }}</span>
+            }
+          </label>
+          <label>
+            CPF ou CNPJ do produtor
+            <input
+              name="documento"
+              inputmode="numeric"
+              [(ngModel)]="dados.documento"
+            />
+            @if (erros()['documento']) {
+              <span class="erro-campo">{{ erros()['documento'] }}</span>
+            }
+          </label>
+        </div>
         <label>
           Endereço (opcional)
           <input name="logradouro" [(ngModel)]="dados.logradouro" />
         </label>
-        <div class="grade-2">
+        <div class="linha-campos local">
           <label>
             Município
             <input name="municipio" [(ngModel)]="dados.municipio" />
@@ -60,14 +66,28 @@ import { Sessao } from '../nucleo/sessao';
           Integradora (opcional)
           <input name="integradora" [(ngModel)]="dados.integradora" />
         </label>
-        <p class="suave">
-          Tipo de criação: frango de corte. Você será o Gestor da fazenda.
-        </p>
-        <button type="submit" [disabled]="enviando()">
-          {{ enviando() ? 'Salvando…' : 'Cadastrar fazenda' }}
-        </button>
+        <span class="ajuda"
+          >Tipo de criação: frango de corte. Você será o Gestor da
+          fazenda.</span
+        >
+        <div>
+          <button type="submit" [disabled]="enviando()">
+            {{ enviando() ? 'Salvando…' : 'Cadastrar fazenda' }}
+          </button>
+        </div>
       </form>
     </main>
+  `,
+  styles: `
+    .estreita {
+      max-width: 800px;
+    }
+    .local {
+      grid-template-columns: minmax(0, 1fr) 96px;
+    }
+    .local input[name='uf'] {
+      text-transform: uppercase;
+    }
   `,
 })
 export class NovaFazenda {

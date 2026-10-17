@@ -14,10 +14,27 @@ export interface SerieGrafico {
   nome: string;
   /** Cor da linha (token CSS). Ignorada nas séries de referência. */
   cor: string;
-  pontos: { x: number; y: number }[];
+  /** `nota` aparece na dica junto do valor (ex.: nível do alerta). */
+  pontos: { x: number; y: number; nota?: string }[];
   /** Curva padrão: linha cinza, sem marcadores, atrás das outras. */
   referencia?: boolean;
 }
+
+/** Faixa sombreada atrás das linhas (ex.: ±5% da curva padrão). */
+export interface FaixaGrafico {
+  nome: string;
+  pontos: { x: number; min: number; max: number }[];
+}
+
+/** Limite de alerta: linha tracejada em degraus, com ícone e nome na ponta. */
+export interface LimiteGrafico {
+  id: string;
+  nome: string;
+  nivel: 'atencao' | 'critico';
+  pontos: { x: number; y: number }[];
+}
+
+const ICONE_LIMITE = { atencao: '⚠', critico: '‼' } as const;
 
 const MARGEM = { topo: 12, direita: 96, base: 34, esquerda: 56 };
 const ALTURA = 280;
@@ -38,14 +55,14 @@ function escalaY(maximo: number): number[] {
 }
 
 /**
- * Gráfico de linhas em SVG para séries por idade (UC11, UC15). Um eixo só;
- * legenda com 2+ séries e rótulo na ponta de cada linha; ao passar o mouse,
- * linha vertical e valores daquela idade.
+ * Gráfico de linhas em SVG para séries por idade (UC11, UC15, E5). Um eixo só;
+ * legenda com 2+ itens e rótulo na ponta de cada linha; faixa da meta e limites
+ * de alerta opcionais; ao passar o mouse, linha vertical e valores daquela idade.
  */
 @Component({
   selector: 'crista-grafico-linhas',
   template: `
-    @if (legenda().length > 1) {
+    @if (itensLegenda() > 1) {
       <ul class="legenda">
         @for (s of legenda(); track s.id) {
           <li>
@@ -55,6 +72,15 @@ function escalaY(maximo: number): number[] {
               [style.background]="s.referencia ? null : s.cor"
             ></span>
             {{ s.nome }}
+          </li>
+        }
+        @if (faixaVisivel(); as fx) {
+          <li><span class="chave faixa"></span>{{ fx.nome }}</li>
+        }
+        @for (l of limitesVisiveis(); track l.id) {
+          <li>
+            <span class="chave limite" [class]="l.nivel"></span>
+            {{ icone[l.nivel] }} {{ l.nome }}
           </li>
         }
       </ul>
@@ -106,6 +132,23 @@ function escalaY(maximo: number): number[] {
         >
           {{ rotuloX() }}
         </text>
+
+        @if (faixaVisivel(); as fx) {
+          <path class="faixa" [attr.d]="caminhoFaixa(fx)" />
+        }
+        @for (l of limitesVisiveis(); track l.id) {
+          <path class="limite" [class]="l.nivel" [attr.d]="degraus(l.pontos)" />
+          @if (l.pontos.at(-1); as p) {
+            <text
+              class="rotulo"
+              [attr.x]="x(p.x) + 8"
+              [attr.y]="y(p.y)"
+              dominant-baseline="middle"
+            >
+              {{ icone[l.nivel] }} {{ l.nome }}
+            </text>
+          }
+        }
 
         @if (foco(); as f) {
           <line
@@ -163,6 +206,12 @@ function escalaY(maximo: number): number[] {
               >{{ v.nome }}: {{ v.texto }}</span
             >
           }
+          @if (d.faixa; as fx) {
+            <span><i class="faixa"></i>{{ fx }}</span>
+          }
+          @for (l of d.limites; track l.nome) {
+            <span><i class="limite" [class]="l.nivel"></i>{{ l.texto }}</span>
+          }
         </div>
       }
     </div>
@@ -171,8 +220,9 @@ function escalaY(maximo: number): number[] {
     :host {
       display: block;
       --grafico-superficie: var(--superficie);
-      --grafico-grade: #e6e5df;
+      --grafico-grade: var(--borda);
       --grafico-referencia: #9a998f;
+      --grafico-faixa: rgb(154 153 143 / 0.18);
     }
     .legenda {
       display: flex;
@@ -196,8 +246,40 @@ function escalaY(maximo: number): number[] {
     .dica i.ref {
       background: var(--grafico-referencia);
     }
+    .chave.faixa,
+    .dica i.faixa {
+      height: 10px;
+      border-radius: 2px;
+      background: var(--grafico-faixa);
+    }
+    .chave.limite {
+      height: 0;
+      border-top: 2px dashed;
+      border-radius: 0;
+    }
+    .dica i.limite {
+      height: 0;
+      border-radius: 0;
+      border-top: 2px dashed;
+    }
+    .atencao {
+      color: var(--atencao);
+      stroke: var(--atencao);
+    }
+    .critico {
+      color: var(--critico);
+      stroke: var(--critico);
+    }
     .area {
       position: relative;
+    }
+    .faixa {
+      fill: var(--grafico-faixa);
+    }
+    path.limite {
+      fill: none;
+      stroke-width: 1.5;
+      stroke-dasharray: 6 4;
     }
     svg {
       display: block;
@@ -261,6 +343,10 @@ export class GraficoLinhas {
   readonly rotuloX = input('Idade (dias)');
   readonly formatoY = input<(v: number) => string>((v) => String(v));
   readonly descricao = input('Gráfico de linhas');
+  readonly faixa = input<FaixaGrafico | null>(null);
+  readonly limites = input<LimiteGrafico[]>([]);
+
+  protected readonly icone = ICONE_LIMITE;
 
   protected readonly margem = MARGEM;
   protected readonly altura = ALTURA;
@@ -289,6 +375,20 @@ export class GraficoLinhas {
       (a, b) => Number(!!b.referencia) - Number(!!a.referencia),
     ),
   );
+  protected readonly faixaVisivel = computed(() => {
+    const f = this.faixa();
+    return f && f.pontos.length > 1 ? f : null;
+  });
+  protected readonly limitesVisiveis = computed(() =>
+    this.limites().filter((l) => l.pontos.length > 0),
+  );
+  protected readonly itensLegenda = computed(
+    () =>
+      this.legenda().length +
+      (this.faixaVisivel() ? 1 : 0) +
+      this.limitesVisiveis().length,
+  );
+  /** Pontos das séries: definem o eixo X e onde a dica encaixa. */
   private readonly todos = computed(() =>
     this.legenda().flatMap((s) => s.pontos),
   );
@@ -296,8 +396,16 @@ export class GraficoLinhas {
     const xs = this.todos().map((p) => p.x);
     return xs.length ? [Math.min(0, ...xs), Math.max(1, ...xs)] : [0, 1];
   });
+  /** O eixo Y cobre também a faixa e os limites, para nada ficar cortado. */
   protected readonly ticksY = computed(() =>
-    escalaY(Math.max(0, ...this.todos().map((p) => p.y))),
+    escalaY(
+      Math.max(
+        0,
+        ...this.todos().map((p) => p.y),
+        ...(this.faixaVisivel()?.pontos.map((p) => p.max) ?? []),
+        ...this.limitesVisiveis().flatMap((l) => l.pontos.map((p) => p.y)),
+      ),
+    ),
   );
   protected readonly ticksX = computed(() => {
     const [min, max] = this.dominioX();
@@ -333,7 +441,29 @@ export class GraficoLinhas {
       .join(' ');
   }
 
-  /** Nome da série na ponta da linha; com mais de 4 séries fica só a legenda. */
+  protected caminhoFaixa(f: FaixaGrafico): string {
+    const ida = f.pontos.map(
+      (p, i) =>
+        `${i === 0 ? 'M' : 'L'}${this.x(p.x).toFixed(1)},${this.y(p.max).toFixed(1)}`,
+    );
+    const volta = [...f.pontos]
+      .reverse()
+      .map((p) => `L${this.x(p.x).toFixed(1)},${this.y(p.min).toFixed(1)}`);
+    return [...ida, ...volta, 'Z'].join(' ');
+  }
+
+  /** Limite muda de uma vez (ex.: fim da primeira semana): degrau, não rampa. */
+  protected degraus(pontos: { x: number; y: number }[]): string {
+    return pontos
+      .map((p, i) =>
+        i === 0
+          ? `M${this.x(p.x).toFixed(1)},${this.y(p.y).toFixed(1)}`
+          : `H${this.x(p.x).toFixed(1)} V${this.y(p.y).toFixed(1)}`,
+      )
+      .join(' ');
+  }
+
+  /** Nome da série na ponta da linha, com 2 a 5 séries. */
   protected rotuloFinal(s: SerieGrafico): { x: number; y: number } | null {
     return this.rotulos().get(s.id) ?? null;
   }
@@ -345,17 +475,25 @@ export class GraficoLinhas {
    */
   private readonly rotulos = computed(() => {
     const pontas = new Map<string, { x: number; y: number }>();
-    if (this.legenda().length > 5) return pontas;
+    // Uma série só já é nomeada pelo título; mais de 5 ficam só na legenda
+    if (this.legenda().length < 2 || this.legenda().length > 5) return pontas;
     for (const s of this.legenda()) {
       const ultimo = s.pontos.at(-1);
       if (ultimo)
         pontas.set(s.id, { x: this.x(ultimo.x) + 8, y: this.y(ultimo.y) });
     }
+    // Os rótulos dos limites ficam sempre; os das séries saem se encostarem
+    const fixos = this.limitesVisiveis().map((l) => {
+      const p = l.pontos.at(-1) as { x: number; y: number };
+      return { x: this.x(p.x) + 8, y: this.y(p.y) };
+    });
     const lista = [...pontas.values()];
-    const colidem = lista.some((a, i) =>
-      lista
-        .slice(i + 1)
-        .some((b) => Math.abs(a.x - b.x) < 80 && Math.abs(a.y - b.y) < 14),
+    const perto = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+      Math.abs(a.x - b.x) < 80 && Math.abs(a.y - b.y) < 14;
+    const colidem = lista.some(
+      (a, i) =>
+        lista.slice(i + 1).some((b) => perto(a, b)) ||
+        fixos.some((b) => perto(a, b)),
     );
     return colidem ? new Map<string, { x: number; y: number }>() : pontas;
   });
@@ -388,9 +526,22 @@ export class GraficoLinhas {
         nome: s.nome,
         cor: s.cor,
         referencia: !!s.referencia,
-        texto: this.formatoY()((p as { y: number }).y),
+        texto:
+          this.formatoY()((p as { y: number }).y) +
+          (p?.nota ? ` · ${p.nota}` : ''),
       }));
-    const esquerda = Math.min(this.x(f), this.largura() - 180);
-    return { x: f, valores, esquerda };
+    const fmt = this.formatoY();
+    const naFaixa = this.faixaVisivel()?.pontos.find((p) => p.x === f);
+    const faixa = naFaixa
+      ? `${this.faixaVisivel()?.nome}: ${fmt(naFaixa.min)} a ${fmt(naFaixa.max)}`
+      : null;
+    const limites = this.limitesVisiveis().flatMap((l) => {
+      const p = l.pontos.find((q) => q.x === f);
+      return p
+        ? [{ nome: l.nome, nivel: l.nivel, texto: `${l.nome}: ${fmt(p.y)}` }]
+        : [];
+    });
+    const esquerda = Math.min(this.x(f), this.largura() - 200);
+    return { x: f, valores, faixa, limites, esquerda };
   });
 }

@@ -23,6 +23,7 @@ import {
   formatarData,
   formatarIndicador,
   formatarNumero,
+  formatarReais,
 } from '../nucleo/formato';
 import { GraficoLinhas, SerieGrafico } from '../nucleo/grafico-linhas';
 
@@ -60,11 +61,7 @@ type Linha = {
   titulo?: (l: LoteNoPainel) => string;
 };
 
-const reais = new Intl.NumberFormat('pt-BR', {
-  style: 'currency',
-  currency: 'BRL',
-});
-const brl = (i: Indicador) => (i.disponivel ? reais.format(i.valor) : '—');
+const brl = (i: Indicador) => (i.disponivel ? formatarReais(i.valor) : '—');
 const motivo = (i: Indicador) => (i.disponivel ? '' : i.motivo);
 
 const LINHAS_ZOOTECNICAS: Linha[] = [
@@ -72,12 +69,12 @@ const LINHAS_ZOOTECNICAS: Linha[] = [
   { rotulo: 'Saldo de aves', valor: (l) => formatarNumero(l.resumo.saldoAves) },
   {
     rotulo: 'Mortalidade',
-    valor: (l) => formatarIndicador(l.resumo.mortalidade, 2, '%'),
+    valor: (l) => formatarIndicador(l.resumo.mortalidade, 2, ' %'),
     titulo: (l) => motivo(l.resumo.mortalidade),
   },
   {
     rotulo: 'Viabilidade',
-    valor: (l) => formatarIndicador(l.resumo.viabilidade, 2, '%'),
+    valor: (l) => formatarIndicador(l.resumo.viabilidade, 2, ' %'),
   },
   {
     rotulo: 'Peso médio',
@@ -86,12 +83,12 @@ const LINHAS_ZOOTECNICAS: Linha[] = [
   },
   {
     rotulo: 'Peso × curva',
-    valor: (l) => formatarIndicador(l.meta.desvioCurva, 1, '%'),
+    valor: (l) => formatarIndicador(l.meta.desvioCurva, 1, ' %'),
     titulo: (l) => motivo(l.meta.desvioCurva),
   },
   {
     rotulo: 'Uniformidade',
-    valor: (l) => formatarIndicador(l.resumo.uniformidade, 1, '%'),
+    valor: (l) => formatarIndicador(l.resumo.uniformidade, 1, ' %'),
   },
   {
     rotulo: 'GPD médio',
@@ -116,7 +113,7 @@ const LINHAS_ZOOTECNICAS: Linha[] = [
 const LINHAS_FINANCEIRAS: Linha[] = [
   {
     rotulo: 'Custo total',
-    valor: (l) => (l.financeiro ? reais.format(l.financeiro.custoTotal) : '—'),
+    valor: (l) => formatarReais(l.financeiro?.custoTotal),
   },
   {
     rotulo: 'Custo por ave alojada',
@@ -142,53 +139,109 @@ const LINHAS_FINANCEIRAS: Linha[] = [
   selector: 'crista-painel',
   imports: [FormsModule, GraficoLinhas],
   template: `
+    <header class="cabecalho-secao">
+      <h1>Painel</h1>
+      <div class="acoes visoes">
+        <select
+          name="visao"
+          aria-label="Visões salvas"
+          [ngModel]="visaoEscolhida()"
+          (ngModelChange)="aplicarVisao($event)"
+        >
+          <option value="">
+            {{ visoes().length ? 'Abrir visão salva…' : 'Nenhuma visão salva' }}
+          </option>
+          @for (v of visoes(); track v.id) {
+            <option [value]="v.id">{{ v.nome }}</option>
+          }
+        </select>
+        @if (visaoEscolhida()) {
+          <button
+            type="button"
+            class="fantasma pequeno"
+            (click)="excluirVisao()"
+          >
+            Excluir visão
+          </button>
+        }
+        <button
+          type="button"
+          class="secundario pequeno"
+          (click)="salvarVisao()"
+          [disabled]="selecionados().length === 0"
+        >
+          Salvar esta visão
+        </button>
+      </div>
+    </header>
     @if (erro()) {
       <p class="aviso" role="alert">{{ erro() }}</p>
     }
-    <section class="cartao filtros">
+    @if (avisoVisao()) {
+      <p class="aviso atencao" role="status">⚠ {{ avisoVisao() }}</p>
+    }
+    <section class="cartao formulario">
       <fieldset>
-        <legend>Lotes (até {{ maximo }})</legend>
-        @for (l of lotes(); track l.id) {
-          <label class="caixa">
-            <input
-              type="checkbox"
-              [checked]="selecionados().includes(l.id)"
-              [disabled]="
-                !selecionados().includes(l.id) &&
-                selecionados().length >= maximo
-              "
-              (change)="alternar(l.id)"
-            />
-            @if (cor(l.id); as c) {
-              <span class="chave" [style.background]="c"></span>
-            }
-            {{ l.codigo }}
-            <span class="suave"
-              >· {{ l.galpao }} · {{ nomeLinhagem[l.linhagem] }}</span
-            >
-          </label>
-        } @empty {
-          <p class="suave">Nenhum lote cadastrado.</p>
-        }
+        <legend>Lotes para comparar (até {{ maximo }})</legend>
+        <div class="opcoes">
+          @for (l of lotes(); track l.id) {
+            <label class="opcao">
+              <input
+                type="checkbox"
+                [checked]="selecionados().includes(l.id)"
+                [disabled]="
+                  !selecionados().includes(l.id) &&
+                  selecionados().length >= maximo
+                "
+                (change)="alternar(l.id)"
+              />
+              @if (cor(l.id); as c) {
+                <span class="chave" [style.background]="c"></span>
+              }
+              {{ l.codigo }}
+              <span class="suave"
+                >{{ l.galpao }} · {{ nomeLinhagem[l.linhagem] }}</span
+              >
+            </label>
+          } @empty {
+            <span class="suave">Nenhum lote cadastrado.</span>
+          }
+        </div>
       </fieldset>
-      <div class="periodo">
+      <div class="acoes periodo">
         <label>
           Período
           <select [(ngModel)]="modo" name="modo">
             <option value="hoje">Do alojamento até hoje</option>
-            <option value="idade">Por idade (dias)</option>
+            <option value="idade">Por idade</option>
             <option value="data">Por data</option>
           </select>
         </label>
         @if (modo === 'idade') {
           <label
             >De
-            <input type="number" min="0" name="idadeDe" [(ngModel)]="idadeDe"
-          /></label>
+            <span class="campo-unidade curto">
+              <input
+                type="number"
+                min="0"
+                name="idadeDe"
+                [(ngModel)]="idadeDe"
+              />
+              <span>dias</span>
+            </span>
+          </label>
           <label
             >Até
-            <input type="number" min="0" name="idadeAte" [(ngModel)]="idadeAte"
-          /></label>
+            <span class="campo-unidade curto">
+              <input
+                type="number"
+                min="0"
+                name="idadeAte"
+                [(ngModel)]="idadeAte"
+              />
+              <span>dias</span>
+            </span>
+          </label>
         }
         @if (modo === 'data') {
           <label>De <input type="date" name="de" [(ngModel)]="de" /></label>
@@ -199,63 +252,32 @@ const LINHAS_FINANCEIRAS: Linha[] = [
           (click)="comparar()"
           [disabled]="selecionados().length === 0 || carregando()"
         >
-          Comparar
+          {{ carregando() ? 'Comparando…' : 'Comparar lotes' }}
         </button>
       </div>
-      <div class="periodo visoes">
-        <label>
-          Visões salvas
-          <select
-            name="visao"
-            [ngModel]="visaoEscolhida()"
-            (ngModelChange)="aplicarVisao($event)"
-          >
-            <option value="">
-              {{ visoes().length ? 'Escolha uma visão…' : 'Nenhuma salva' }}
-            </option>
-            @for (v of visoes(); track v.id) {
-              <option [value]="v.id">{{ v.nome }}</option>
-            }
-          </select>
-        </label>
-        <button
-          type="button"
-          class="secundario"
-          (click)="salvarVisao()"
-          [disabled]="selecionados().length === 0"
-        >
-          Salvar esta visão
-        </button>
-        @if (visaoEscolhida()) {
-          <button type="button" class="perigo" (click)="excluirVisao()">
-            Excluir visão
-          </button>
-        }
-      </div>
-      @if (avisoVisao()) {
-        <p class="aviso atencao" role="status">{{ avisoVisao() }}</p>
-      }
     </section>
 
     @if (resultado(); as r) {
       @for (a of r.avisos; track a) {
-        <p class="aviso atencao">{{ a }}</p>
+        <p class="aviso atencao">⚠ {{ a }}</p>
       }
 
       <section class="cartao">
         <h3>Indicadores</h3>
         <div class="rolagem">
-          <table class="tabela">
+          <table class="tabela comparacao">
             <thead>
               <tr>
-                <th></th>
+                <th><span class="visivel-leitor">Indicador</span></th>
                 @for (l of r.lotes; track l.id) {
-                  <th>
-                    <span class="chave" [style.background]="cor(l.id)"></span
-                    >{{ l.codigo }}
-                    <div class="suave periodo-lote">
+                  <th class="num">
+                    <span class="lote-coluna">
+                      <span class="chave" [style.background]="cor(l.id)"></span
+                      >{{ l.codigo }}
+                    </span>
+                    <span class="periodo-lote">
                       {{ data(l.periodo.inicio) }} a {{ data(l.periodo.fim) }}
-                    </div>
+                    </span>
                   </th>
                 }
               </tr>
@@ -265,7 +287,10 @@ const LINHAS_FINANCEIRAS: Linha[] = [
                 <tr>
                   <th scope="row">{{ linha.rotulo }}</th>
                   @for (l of r.lotes; track l.id) {
-                    <td [title]="linha.titulo ? linha.titulo(l) : ''">
+                    <td
+                      class="num"
+                      [title]="linha.titulo ? linha.titulo(l) : ''"
+                    >
                       {{ linha.valor(l) }}
                     </td>
                   }
@@ -276,64 +301,84 @@ const LINHAS_FINANCEIRAS: Linha[] = [
         </div>
       </section>
 
-      <section class="cartao">
-        <h3>Peso médio por idade</h3>
-        <crista-grafico-linhas
-          [series]="seriesPeso()"
-          [formatoY]="gramas"
-          descricao="Peso médio de cada lote por idade em dias"
-        />
-      </section>
+      <div class="graficos">
+        <section class="cartao">
+          <h3>Peso médio por idade</h3>
+          <crista-grafico-linhas
+            [series]="seriesPeso()"
+            [formatoY]="gramas"
+            descricao="Peso médio de cada lote por idade em dias"
+          />
+        </section>
 
-      <section class="cartao">
-        <h3>Mortalidade acumulada por idade</h3>
-        <crista-grafico-linhas
-          [series]="seriesMortalidade()"
-          [formatoY]="percentual"
-          descricao="Mortalidade acumulada de cada lote por idade em dias"
-        />
-      </section>
+        <section class="cartao">
+          <h3>Mortalidade acumulada por idade</h3>
+          <crista-grafico-linhas
+            [series]="seriesMortalidade()"
+            [formatoY]="percentual"
+            descricao="Mortalidade acumulada de cada lote por idade em dias"
+          />
+        </section>
+      </div>
+    } @else if (!carregando()) {
+      <p class="suave">
+        Escolha de 1 a {{ maximo }} lotes e o período, e clique em Comparar
+        lotes.
+      </p>
     }
   `,
   styles: `
-    .filtros {
-      display: grid;
-      gap: 1rem;
-    }
-    fieldset {
-      border: 1px solid var(--borda);
-      border-radius: 6px;
-      display: grid;
-      gap: 0.35rem;
+    .visoes select {
+      width: auto;
+      min-height: 32px;
+      font-size: 14px;
     }
     .periodo {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.75rem;
       align-items: end;
     }
     .periodo select,
-    .periodo input {
+    .periodo input[type='date'] {
       width: auto;
     }
-    .visoes {
-      padding-top: 0.75rem;
-      border-top: 1px solid var(--borda);
+    .curto {
+      display: block;
+      width: 120px;
     }
     .chave {
       display: inline-block;
       width: 12px;
       height: 12px;
       border-radius: 3px;
-      margin-right: 0.35rem;
-      vertical-align: -1px;
+      margin-right: var(--espaco-1);
+    }
+    .lote-coluna {
+      display: block;
+      color: var(--texto);
+      font-weight: 600;
     }
     .periodo-lote {
+      display: block;
+      font-size: 12px;
       font-weight: 400;
-      font-size: 0.75rem;
     }
-    th[scope='row'] {
+    .comparacao th[scope='row'] {
       white-space: nowrap;
+      font-weight: 500;
+      color: var(--texto-suave);
+      background: none;
+    }
+    .graficos {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+      gap: var(--espaco-4);
+    }
+    .graficos .cartao {
+      margin: 0;
+    }
+    @media (max-width: 640px) {
+      .graficos {
+        grid-template-columns: 1fr;
+      }
     }
   `,
 })
@@ -346,7 +391,7 @@ export class Painel implements OnInit {
   protected readonly nomeLinhagem = NOME_LINHAGEM;
   protected readonly data = formatarData;
   protected readonly gramas = (v: number) => `${formatarNumero(v)} g`;
-  protected readonly percentual = (v: number) => `${formatarNumero(v, 2)}%`;
+  protected readonly percentual = (v: number) => `${formatarNumero(v, 2)} %`;
   protected readonly lotes = signal<LoteResumido[]>([]);
   protected readonly selecionados = signal<string[]>([]);
   /** Lote → slot de cor (1 a 4). O slot fica com o lote enquanto ele estiver selecionado. */

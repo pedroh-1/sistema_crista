@@ -1,4 +1,10 @@
-import { Indicador, NivelAlerta, Perfil } from '@crista/domain';
+import {
+  Indicador,
+  Limites,
+  NivelAlerta,
+  Perfil,
+  PontoMortalidadeDia,
+} from '@crista/domain';
 
 export interface Estorno {
   motivo: string;
@@ -80,6 +86,12 @@ export interface CurvaLote {
   linhagem: LoteResumido['linhagem'];
   pesagens: PontoPesagem[];
   curvaPadrao: { idadeDias: number; pesoG: number }[];
+}
+
+/** Mortalidade de cada dia com baixa e os limites do alerta (E5). */
+export interface MortalidadeDiaria {
+  limitesConfigurados: Limites | null;
+  pontos: PontoMortalidadeDia[];
 }
 
 export interface FinanceiroLote {

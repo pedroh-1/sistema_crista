@@ -208,6 +208,20 @@ Com `dataviz`: curva de peso contra o padrão da linhagem (faixa de ±5% da meta
 diária com os limites de atenção e crítico, custos por categoria, comparação de até 4 lotes.
 O resultado vira a nova especificação do `nucleo/grafico-linhas.ts`.
 
+Feita direto no Angular em 17/10/2026:
+
+- `grafico-linhas.ts` aceita `faixa` (área cinza atrás das linhas) e `limites` (linhas
+  tracejadas em degrau, na cor do estado, com ícone e nome na ponta). O eixo Y cobre a faixa e
+  os limites; a dica mostra a faixa, os limites e uma `nota` por ponto. Rótulo na ponta da
+  linha só com 2 a 5 séries (uma série já é nomeada pelo título).
+- Aba Curva: faixa da meta a partir da curva padrão e `FAIXA_META_PCT`; a dica traz a
+  situação da pesagem.
+- Aba Mortalidade: gráfico da mortalidade de cada dia com baixa lançada, com os limites de
+  atenção e crítico que valiam em cada idade (o padrão dobra na primeira semana). Fórmula em
+  `serieMortalidadeDia()` (`@crista/domain`), rota `GET .../lotes/:idLote/mortalidade`.
+  Dias sem lançamento ficam fora, porque não dá para saber se foram zero.
+- Custos por categoria já eram barras dentro da tabela; o painel já fixa a cor pelo lote.
+
 ### E6: Revisão
 
 - Conferir cada prancha contra o mapa de campos: nenhum campo inventado, nenhum campo
@@ -230,9 +244,16 @@ Já feito:
   revogar vínculo, visões salvas).
 - `nucleo/cartao-indicador.ts` e a página do lote com trilha, cartões e linha de detalhes.
 - Aba Mortalidade como modelo: foco em Mortes, `Enter` envia, limpa e volta o foco; linha
-  estornada riscada com o motivo.
+  estornada riscada com o motivo. A diretiva `nucleo/primeiro-campo.ts` faz o foco nos
+  outros formulários de lançamento.
+- Todas as telas convertidas (17/10/2026): abas do lote, lista de lotes com alertas em
+  destaque, Alertas, Despesas, Painel, Equipamentos, Galpões, Equipe, fazendas, novo lote e
+  conta. Campos raros ficam em "Mais detalhes"; unidades dentro do campo (`.campo-unidade`,
+  `.prefixo` para R$); grupos de opções marcáveis em `label.opcao`; `formatarReais` no
+  lugar dos formatadores repetidos.
 
-Falta converter as outras telas na ordem da E4.
+Falta: as etapas E3, E4 e E6 ficaram para trás (a E5 foi feita direto no código); a revisão com o operador (tempo para lançar baixa e pesagem) ainda
+precisa ser feita.
 
 - Passar os tokens do Design System para `styles.scss`, sem quebrar as regras de celular que
   já existem.
@@ -242,9 +263,11 @@ Falta converter as outras telas na ordem da E4.
 
 ## Lacunas encontradas
 
-- Não há rota de resumo da fazenda (lotes em andamento com indicadores, alertas abertos,
-  equipamentos parados numa resposta só). Uma tela inicial de fazenda precisaria de várias
-  chamadas; decidir na E4 se vale criar `GET fazendas/:id/resumo`.
+- ~~Não há rota de resumo da fazenda.~~ Resolvida em 17/10/2026: `GET fazendas/:id/resumo`
+  (`producao/resumo-fazenda.service.ts`) traz os lotes em andamento com idade, aves,
+  mortalidade, mortalidade do dia, peso médio, meta, carência e alertas de cada lote, mais os
+  totais de aves, galpões ocupados, alertas abertos e equipamentos parados, só nos galpões do
+  vínculo. A página inicial (Minhas fazendas) faz uma chamada por fazenda.
 - Não há marca (logotipo, nome visual). Definir na E1 ou seguir só com o nome em texto.
 
 ## Perguntas para a equipe

@@ -364,6 +364,39 @@ describe('Fase 6: equipamentos e manutenção', () => {
       expect(equipamento.body.paradoDesde).not.toBeNull();
     });
 
+    it('o resumo da fazenda mostra a parada e só os lotes dos galpões do vínculo', async () => {
+      const doGestor = await api()
+        .get(url('/resumo'))
+        .auth(gestor, { type: 'bearer' })
+        .expect(200);
+      expect(doGestor.body).toMatchObject({
+        saldoAves: 15000,
+        galpoes: { total: 3, ocupados: 2 },
+        alertas: { abertos: 1, criticos: 1 },
+        equipamentosParados: { total: 1, criticos: 1 },
+      });
+      expect(
+        doGestor.body.lotes.map((l: { codigo: string }) => l.codigo).sort(),
+      ).toEqual(['A-1', 'B-1']);
+      expect(doGestor.body.lotes[0]).toMatchObject({
+        idadeDias: 10,
+        situacaoMeta: null,
+        alertas: { abertos: 0, criticos: 0 },
+      });
+
+      const doOperador = await api()
+        .get(url('/resumo'))
+        .auth(operador, { type: 'bearer' })
+        .expect(200);
+      expect(doOperador.body).toMatchObject({
+        lotes: [{ codigo: 'A-1', galpao: 'A', saldoAves: 10000 }],
+        saldoAves: 10000,
+        galpoes: { total: 1, ocupados: 1 },
+        // O gerador é da fazenda: quem vê só o galpão A também vê a parada.
+        equipamentosParados: { total: 1, criticos: 1 },
+      });
+    });
+
     it('não abre outra parada enquanto a anterior não tiver retorno', () =>
       api()
         .post(equip(gerador, '/manutencoes'))

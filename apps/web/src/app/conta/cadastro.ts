@@ -5,16 +5,17 @@ import { RouterLink } from '@angular/router';
 import { cadastroUsuarioSchema } from '@crista/domain';
 import { firstValueFrom } from 'rxjs';
 import { ErrosCampo, mensagemErro, validar } from '../nucleo/erros';
+import { PrimeiroCampo } from '../nucleo/primeiro-campo';
 
 @Component({
   selector: 'crista-cadastro',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, PrimeiroCampo],
   template: `
     <main class="pagina-estreita">
       <h1>Criar conta</h1>
       @if (emailEnviado()) {
         <div class="cartao">
-          <p class="aviso sucesso" role="status">Conta criada.</p>
+          <p class="aviso sucesso" role="status">✓ Conta criada.</p>
           <p>
             Enviamos um link de confirmação para
             <strong>{{ emailEnviado() }}</strong
@@ -31,7 +32,12 @@ import { ErrosCampo, mensagemErro, validar } from '../nucleo/erros';
           }
           <label>
             Nome completo
-            <input name="nome" autocomplete="name" [(ngModel)]="dados.nome" />
+            <input
+              cristaPrimeiroCampo
+              name="nome"
+              autocomplete="name"
+              [(ngModel)]="dados.nome"
+            />
             @if (erros()['nome']) {
               <span class="erro-campo">{{ erros()['nome'] }}</span>
             }
@@ -73,7 +79,7 @@ import { ErrosCampo, mensagemErro, validar } from '../nucleo/erros';
               autocomplete="new-password"
               [(ngModel)]="dados.senha"
             />
-            <span class="suave">8 ou mais caracteres, com letra e número.</span>
+            <span class="ajuda">8 ou mais caracteres, com letra e número.</span>
             @if (erros()['senha']) {
               <span class="erro-campo">{{ erros()['senha'] }}</span>
             }
@@ -89,9 +95,11 @@ import { ErrosCampo, mensagemErro, validar } from '../nucleo/erros';
           @if (erros()['aceiteTermos']) {
             <span class="erro-campo">{{ erros()['aceiteTermos'] }}</span>
           }
-          <button type="submit" [disabled]="enviando()">
-            {{ enviando() ? 'Criando…' : 'Criar conta' }}
-          </button>
+          <div>
+            <button type="submit" [disabled]="enviando()">
+              {{ enviando() ? 'Criando…' : 'Criar conta' }}
+            </button>
+          </div>
         </form>
         <p class="suave">
           Já tem conta?

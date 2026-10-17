@@ -17,7 +17,7 @@ import { mensagemErro } from '../nucleo/erros';
           }
           @case ('ok') {
             <p class="aviso sucesso" role="status">
-              E-mail confirmado. Sua conta está ativa.
+              ✓ E-mail confirmado. Sua conta está ativa.
             </p>
             <p><a class="botao" routerLink="/entrar">Entrar</a></p>
           }

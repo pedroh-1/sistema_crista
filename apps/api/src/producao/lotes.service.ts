@@ -5,7 +5,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { alojamentoSchema, hojeISO, loteSchema } from '@crista/domain';
+import {
+  alojamentoSchema,
+  hojeISO,
+  loteSchema,
+  serieMortalidadeDia,
+} from '@crista/domain';
 import { z } from 'zod';
 import { AuditoriaService } from '../auditoria/auditoria.service';
 import { AcessoFazenda, podeVerGalpao } from '../fazendas/acesso-fazenda.guard';
@@ -201,6 +206,37 @@ export class LotesService {
       linhagem: lote.linhagem,
       pesagens,
       curvaPadrao: curvaAte(dados.curva, ate),
+    };
+  }
+
+  /** Mortalidade de cada dia com os limites do alerta (UC16) que valiam naquela idade. */
+  async mortalidadeDiaria(acesso: AcessoFazenda, loteId: string) {
+    const lote = await this.contexto.carregar(acesso, loteId);
+    const dados = await this.dadosLote.carregar(lote);
+    const { avesAlojadas } = resumoDoLote(dados.entrada);
+    const regra = await this.prisma.regraAlerta.findUnique({
+      where: {
+        fazendaId_indicador: {
+          fazendaId: lote.fazendaId,
+          indicador: 'mortalidade_dia',
+        },
+      },
+    });
+    const configurado = regra
+      ? {
+          atencao: Number(regra.limiteAtencao),
+          critico: Number(regra.limiteCritico),
+        }
+      : null;
+    return {
+      limitesConfigurados: configurado,
+      pontos:
+        avesAlojadas === null
+          ? []
+          : serieMortalidadeDia(
+              { ...dados.entrada, avesAlojadas },
+              configurado,
+            ),
     };
   }
 

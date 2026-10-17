@@ -20,21 +20,23 @@ import { firstValueFrom } from 'rxjs';
 import { FazendaAtual } from '../fazendas/fazenda-atual';
 import { ErrosCampo, mensagemErro, validar } from '../nucleo/erros';
 import { hoje } from '../nucleo/formato';
+import { PrimeiroCampo } from '../nucleo/primeiro-campo';
 import { Equipamento } from './tipos';
 
 /** UC18: cadastro e edição do equipamento. */
 @Component({
   selector: 'crista-form-equipamento',
-  imports: [FormsModule],
+  imports: [FormsModule, PrimeiroCampo],
   template: `
     <form class="formulario" (ngSubmit)="salvar()">
       @if (erro()) {
         <p class="aviso" role="alert">{{ erro() }}</p>
       }
-      <div class="grade-2">
+      <div class="linha-campos">
         <label>
           Nome
           <input
+            cristaPrimeiroCampo
             name="nome"
             placeholder="Ex.: Exaustor 3"
             [(ngModel)]="dados.nome"
@@ -52,7 +54,7 @@ import { Equipamento } from './tipos';
           </select>
         </label>
         <label>
-          Galpão
+          Local
           <select name="galpao" [(ngModel)]="dados.galpaoId">
             <option value="">Fazenda inteira (sem galpão)</option>
             @for (g of atual.galpoes(); track g.id) {
@@ -63,27 +65,20 @@ import { Equipamento } from './tipos';
             <span class="erro-campo">{{ erros()['galpaoId'] }}</span>
           }
         </label>
+      </div>
+      <div class="linha-campos">
         <label>
-          Número de série (opcional)
-          <input name="serie" [(ngModel)]="dados.numeroSerie" />
-        </label>
-        <label>
-          Fabricante (opcional)
-          <input name="fabricante" [(ngModel)]="dados.fabricante" />
-        </label>
-        <label>
-          Modelo (opcional)
-          <input name="modelo" [(ngModel)]="dados.modelo" />
-        </label>
-        <label>
-          Preventiva a cada (dias, opcional)
-          <input
-            type="number"
-            name="periodicidade"
-            min="1"
-            step="1"
-            [(ngModel)]="dados.periodicidadeDias"
-          />
+          Preventiva a cada (opcional)
+          <span class="campo-unidade">
+            <input
+              type="number"
+              name="periodicidade"
+              min="1"
+              step="1"
+              [(ngModel)]="dados.periodicidadeDias"
+            />
+            <span>dias</span>
+          </span>
           @if (erros()['periodicidadeDias']) {
             <span class="erro-campo">{{ erros()['periodicidadeDias'] }}</span>
           }
@@ -101,6 +96,10 @@ import { Equipamento } from './tipos';
           }
         </label>
       </div>
+      <span class="ajuda"
+        >Sem data de aquisição, a primeira preventiva só tem previsão depois de
+        registrada uma preventiva.</span
+      >
       <label class="caixa">
         <input type="checkbox" name="critico" [(ngModel)]="dados.critico" />
         Equipamento crítico: parada sem retorno abre alerta crítico
@@ -116,14 +115,34 @@ import { Equipamento } from './tipos';
           Inativo (fora de uso; não recebe manutenção)
         </label>
       }
-      <p class="suave">
-        Sem data de aquisição, a primeira preventiva só tem previsão depois de
-        registrada uma preventiva.
-      </p>
-      <div>
-        <button type="submit" [disabled]="enviando()">Salvar</button>
-        &nbsp;
-        <button type="button" class="secundario" (click)="cancelado.emit()">
+      <details class="mais">
+        <summary>Fabricante, modelo e número de série</summary>
+        <div class="linha-campos">
+          <label>
+            Fabricante (opcional)
+            <input name="fabricante" [(ngModel)]="dados.fabricante" />
+          </label>
+          <label>
+            Modelo (opcional)
+            <input name="modelo" [(ngModel)]="dados.modelo" />
+          </label>
+          <label>
+            Número de série (opcional)
+            <input name="serie" [(ngModel)]="dados.numeroSerie" />
+          </label>
+        </div>
+      </details>
+      <div class="acoes">
+        <button type="submit" [disabled]="enviando()">
+          {{
+            enviando()
+              ? 'Salvando…'
+              : equipamento()
+                ? 'Salvar alterações'
+                : 'Cadastrar equipamento'
+          }}
+        </button>
+        <button type="button" class="fantasma" (click)="cancelado.emit()">
           Cancelar
         </button>
       </div>

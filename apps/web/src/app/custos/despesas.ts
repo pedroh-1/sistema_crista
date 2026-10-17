@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   CATEGORIAS_DESPESA,
@@ -19,7 +19,13 @@ import {
   mensagemErro,
   validar,
 } from '../nucleo/erros';
-import { formatarData, formatarNumero, hoje } from '../nucleo/formato';
+import {
+  formatarData,
+  formatarNumero,
+  formatarReais,
+  hoje,
+} from '../nucleo/formato';
+import { PrimeiroCampo } from '../nucleo/primeiro-campo';
 
 interface Despesa {
   id: string;
@@ -39,11 +45,6 @@ interface Despesa {
   }[];
 }
 
-const reais = new Intl.NumberFormat('pt-BR', {
-  style: 'currency',
-  currency: 'BRL',
-});
-
 const vazio = () => ({
   data: hoje(),
   categoria: 'energia' as (typeof CATEGORIAS_DESPESA)[number],
@@ -59,15 +60,19 @@ const vazio = () => ({
 /** UC12: despesas de produção com rateio entre lotes. */
 @Component({
   selector: 'crista-despesas',
-  imports: [FormsModule],
+  imports: [FormsModule, PrimeiroCampo],
   template: `
+    <h1>Despesas</h1>
     @if (erro()) {
       <p class="aviso" role="alert">{{ erro() }}</p>
     }
+    @if (aviso()) {
+      <p class="aviso sucesso" role="status">{{ aviso() }}</p>
+    }
     @if (atual.pode('despesa.registrar')) {
       <form class="cartao formulario" (ngSubmit)="enviar()">
-        <h2>Lançar despesa</h2>
-        <div class="grade-2">
+        <h3>Lançar despesa</h3>
+        <div class="linha-campos campos">
           <label>
             Categoria
             <select name="categoria" [(ngModel)]="dados.categoria">
@@ -91,6 +96,7 @@ const vazio = () => ({
           <label>
             Descrição
             <input
+              cristaPrimeiroCampo
               name="descricao"
               placeholder="Ex.: conta de luz de março"
               [(ngModel)]="dados.descricao"
@@ -100,60 +106,60 @@ const vazio = () => ({
             }
           </label>
           <label>
-            Valor (R$)
-            <input
-              type="number"
-              name="valor"
-              min="0"
-              step="0.01"
-              [(ngModel)]="dados.valor"
-            />
+            Valor
+            <span class="campo-unidade prefixo">
+              <input
+                type="number"
+                name="valor"
+                min="0"
+                step="0.01"
+                [(ngModel)]="dados.valor"
+              />
+              <span>R$</span>
+            </span>
             @if (erros()['valor']) {
               <span class="erro-campo">{{ erros()['valor'] }}</span>
             }
-          </label>
-          <label>
-            Fornecedor (opcional)
-            <input name="fornecedor" [(ngModel)]="dados.fornecedor" />
-          </label>
-          <label>
-            Número da nota (opcional)
-            <input name="nota" [(ngModel)]="dados.numeroNota" />
           </label>
         </div>
 
         <fieldset>
           <legend>Lotes que recebem a despesa</legend>
-          @for (l of lotes(); track l.id) {
-            <label class="caixa">
-              <input
-                type="checkbox"
-                [checked]="dados.lotes.includes(l.id)"
-                (change)="alternarLote(l.id)"
-              />
-              {{ l.codigo }} ({{ l.galpao }})
-              @if (
-                dados.criterioRateio === 'percentual' &&
-                dados.lotes.length > 1 &&
-                dados.lotes.includes(l.id)
-              ) {
+          <div class="opcoes">
+            @for (l of lotes(); track l.id) {
+              <label class="opcao">
                 <input
-                  class="pct"
-                  type="number"
-                  min="0"
-                  max="100"
-                  [name]="'pct-' + l.id"
-                  [(ngModel)]="dados.percentuais[l.id]"
-                  aria-label="Percentual do lote"
-                />%
-              }
-            </label>
-          } @empty {
-            <p class="suave">Nenhum lote em andamento.</p>
-          }
-          <p class="suave">
-            Sem lote marcado, a despesa fica como despesa geral da fazenda.
-          </p>
+                  type="checkbox"
+                  [checked]="dados.lotes.includes(l.id)"
+                  (change)="alternarLote(l.id)"
+                />
+                {{ l.codigo }} <span class="suave">{{ l.galpao }}</span>
+                @if (
+                  dados.criterioRateio === 'percentual' &&
+                  dados.lotes.length > 1 &&
+                  dados.lotes.includes(l.id)
+                ) {
+                  <span class="campo-unidade pct">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      [name]="'pct-' + l.id"
+                      [(ngModel)]="dados.percentuais[l.id]"
+                      aria-label="Percentual do lote"
+                    />
+                    <span>%</span>
+                  </span>
+                }
+              </label>
+            } @empty {
+              <span class="suave">Nenhum lote em andamento.</span>
+            }
+          </div>
+          <span class="ajuda"
+            >Sem lote marcado, a despesa fica como despesa geral da
+            fazenda.</span
+          >
           @if (erros()['lotes']) {
             <span class="erro-campo">{{ erros()['lotes'] }}</span>
           }
@@ -163,7 +169,7 @@ const vazio = () => ({
         </fieldset>
 
         @if (dados.lotes.length > 1) {
-          <label>
+          <label class="criterio">
             Como dividir entre os lotes
             <select name="criterio" [(ngModel)]="dados.criterioRateio">
               @for (c of criterios; track c) {
@@ -172,70 +178,96 @@ const vazio = () => ({
             </select>
           </label>
         }
+        <details class="mais">
+          <summary>Mais detalhes</summary>
+          <div class="linha-campos">
+            <label>
+              Fornecedor (opcional)
+              <input name="fornecedor" [(ngModel)]="dados.fornecedor" />
+            </label>
+            <label>
+              Número da nota (opcional)
+              <input name="nota" [(ngModel)]="dados.numeroNota" />
+            </label>
+          </div>
+        </details>
         <div>
-          <button type="submit" [disabled]="enviando()">Lançar despesa</button>
+          <button type="submit" [disabled]="enviando()">
+            {{ enviando() ? 'Lançando…' : 'Lançar despesa' }}
+          </button>
         </div>
       </form>
     }
 
     <section class="cartao">
-      <h2>Despesas</h2>
+      <h3>Lançamentos</h3>
       <div class="rolagem">
         <table class="tabela">
           <thead>
             <tr>
-              <th>Data</th>
+              <th class="num">Data</th>
               <th>Categoria</th>
               <th>Descrição</th>
-              <th>Valor</th>
-              <th>Lotes</th>
-              <th>Nota</th>
-              <th></th>
+              <th class="num">Valor</th>
+              <th>Rateio</th>
+              <th>Nota / fornecedor</th>
+              <th class="acao"><span class="visivel-leitor">Ações</span></th>
             </tr>
           </thead>
           <tbody>
             @for (d of despesas(); track d.id) {
-              <tr [class.estornado]="d.estorno">
-                <td>{{ data(d.data) }}</td>
-                <td>{{ nomeCategoria[d.categoria] }}</td>
-                <td>{{ d.descricao }}</td>
-                <td>{{ brl(d.valor) }}</td>
+              <tr [class.estornada]="d.estorno">
+                <td class="num riscar">{{ data(d.data) }}</td>
+                <td class="riscar">{{ nomeCategoria[d.categoria] }}</td>
                 <td>
+                  <span class="riscar">{{ d.descricao }}</span>
+                  @if (d.estorno) {
+                    <span class="motivo-estorno"
+                      >Estornada: {{ d.estorno.motivo }}</span
+                    >
+                  }
+                </td>
+                <td class="num riscar">{{ brl(d.valor) }}</td>
+                <td class="riscar">
                   @for (r of d.rateios; track r.loteId) {
                     <div>
                       {{ r.lote }}: {{ brl(r.valor) }}
-                      <span class="suave">({{ num(r.percentual, 1) }}%)</span>
+                      @if (d.rateios.length > 1) {
+                        <span class="suave"
+                          >({{ num(r.percentual, 1) }} %)</span
+                        >
+                      }
                     </div>
                   } @empty {
-                    <span class="suave">Fazenda</span>
+                    <span class="suave">Geral da fazenda</span>
                   }
                 </td>
-                <td>
+                <td class="riscar">
                   {{ d.numeroNota ?? '—'
                   }}{{ d.fornecedor ? ' · ' + d.fornecedor : '' }}
                 </td>
-                <td>
+                <td class="acao">
                   @if (d.estorno) {
-                    <span class="etiqueta inativo" [title]="d.estorno.motivo"
-                      >Estornada</span
-                    >
+                    <!-- estornada: sem ação -->
                   } @else if (d.origem === 'racao') {
-                    <span class="suave" title="Corrija pela aba Ração do lote"
-                      >Ração</span
+                    <span
+                      class="etiqueta"
+                      title="Corrija pela aba Ração do lote"
+                      >Da ração</span
                     >
                   } @else if (d.origem === 'manutencao') {
                     <span
-                      class="suave"
+                      class="etiqueta"
                       title="Corrija pela página do equipamento"
-                      >Manutenção</span
+                      >Da manutenção</span
                     >
                   } @else if (atual.pode('despesa.registrar')) {
                     <button
                       type="button"
-                      class="secundario"
+                      class="fantasma pequeno"
                       (click)="estornar(d)"
                     >
-                      Corrigir
+                      Estornar
                     </button>
                   }
                 </td>
@@ -251,19 +283,23 @@ const vazio = () => ({
     </section>
   `,
   styles: `
-    fieldset {
-      border: 1px solid var(--borda);
-      border-radius: 6px;
-      display: grid;
-      gap: 0.4rem;
+    .campos {
+      grid-template-columns: 200px 170px minmax(200px, 1fr) 180px;
     }
-    input.pct {
-      width: 5rem;
-      margin-left: 0.5rem;
+    .pct {
+      width: 88px;
     }
-    .estornado td:not(:last-child) {
-      text-decoration: line-through;
-      color: var(--texto-suave);
+    .pct input {
+      min-height: 30px;
+      padding-right: 28px;
+    }
+    .criterio {
+      max-width: 320px;
+    }
+    @media (max-width: 900px) {
+      .campos {
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      }
     }
   `,
 })
@@ -279,12 +315,14 @@ export class Despesas implements OnInit {
   protected readonly nomeCriterio = NOME_CRITERIO;
   protected readonly data = formatarData;
   protected readonly num = formatarNumero;
-  protected readonly brl = (v: number) => reais.format(v);
+  protected readonly brl = formatarReais;
+  private readonly primeiro = viewChild(PrimeiroCampo);
   protected dados = vazio();
   protected readonly lotes = signal<LoteResumido[]>([]);
   protected readonly despesas = signal<Despesa[]>([]);
   protected readonly erros = signal<ErrosCampo>({});
   protected readonly erro = signal('');
+  protected readonly aviso = signal('');
   protected readonly enviando = signal(false);
 
   async ngOnInit(): Promise<void> {
@@ -326,11 +364,14 @@ export class Despesas implements OnInit {
 
     this.enviando.set(true);
     this.erro.set('');
+    this.aviso.set('');
     try {
       await firstValueFrom(
         this.http.post(`${this.atual.url()}/despesas`, v.dados),
       );
+      this.aviso.set(`Despesa de ${formatarReais(v.dados.valor)} lançada.`);
       this.dados = vazio();
+      this.primeiro()?.focar();
       await this.carregar();
     } catch (e) {
       if (await confirmouAposAviso(e, this.dialogos)) return this.enviar(true);

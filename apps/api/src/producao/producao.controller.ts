@@ -34,6 +34,7 @@ import { EncerramentoService } from './encerramento.service';
 import { ENTIDADES_EVENTO, EventosService } from './eventos.service';
 import { LotesService } from './lotes.service';
 import { RelatorioService } from './relatorio.service';
+import { ResumoFazendaService } from './resumo-fazenda.service';
 
 const formatoSchema = z.object({
   formato: z.enum(FORMATOS_RELATORIO).default('pdf'),
@@ -86,6 +87,14 @@ export class LotesController {
   @Get(':idLote/curva')
   curva(@Acesso() acesso: AcessoFazenda, @Param('idLote') idLote: string) {
     return this.lotes.curva(acesso, idLote);
+  }
+
+  @Get(':idLote/mortalidade')
+  mortalidade(
+    @Acesso() acesso: AcessoFazenda,
+    @Param('idLote') idLote: string,
+  ) {
+    return this.lotes.mortalidadeDiaria(acesso, idLote);
   }
 
   @Get(':idLote/financeiro')
@@ -265,5 +274,17 @@ export class LotesController {
       type: r.tipo,
       disposition: `attachment; filename="${r.nome}"`,
     });
+  }
+}
+
+/** Resumo da fazenda para a página inicial (lacuna do docs/08-design.md). */
+@Controller('fazendas/:idFazenda/resumo')
+@UseGuards(AcessoFazendaGuard)
+export class ResumoFazendaController {
+  constructor(private readonly resumos: ResumoFazendaService) {}
+
+  @Get()
+  resumo(@Acesso() acesso: AcessoFazenda) {
+    return this.resumos.resumo(acesso);
   }
 }

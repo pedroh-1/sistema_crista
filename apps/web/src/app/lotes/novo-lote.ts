@@ -18,30 +18,33 @@ import {
   mensagemErro,
   validar,
 } from '../nucleo/erros';
-import { hoje } from '../nucleo/formato';
+import { formatarNumero, hoje } from '../nucleo/formato';
+import { PrimeiroCampo } from '../nucleo/primeiro-campo';
 
 @Component({
   selector: 'crista-novo-lote',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, PrimeiroCampo],
   template: `
-    <p><a [routerLink]="atual.link('lotes')">← Lotes</a></p>
-    <h2>Cadastrar lote</h2>
+    <nav class="trilha" aria-label="Caminho">
+      <a [routerLink]="atual.link('lotes')">Lotes</a>
+      <span aria-hidden="true">/</span><span>Cadastrar lote</span>
+    </nav>
+    <h1>Cadastrar lote</h1>
     @if (disponiveis().length === 0) {
-      <div class="cartao">
-        <p>
-          Nenhum galpão disponível. Cadastre um galpão ou encerre o lote em
-          andamento.
-        </p>
-      </div>
+      <p class="aviso atencao">
+        ⚠ Nenhum galpão disponível. Cadastre um galpão ou encerre o lote em
+        andamento.
+      </p>
     } @else {
       <form class="cartao formulario" (ngSubmit)="enviar()">
         @if (erro()) {
           <p class="aviso" role="alert">{{ erro() }}</p>
         }
-        <div class="grade-2">
+        <div class="linha-campos">
           <label>
             Código do lote
             <input
+              cristaPrimeiroCampo
               name="codigo"
               placeholder="Ex.: 2026-07"
               [(ngModel)]="dados.codigo"
@@ -56,7 +59,7 @@ import { hoje } from '../nucleo/formato';
               <option value="">Escolha…</option>
               @for (g of disponiveis(); track g.id) {
                 <option [value]="g.id">
-                  {{ g.identificacao }} (até {{ g.capacidadeAves }} aves)
+                  {{ g.identificacao }} (até {{ num(g.capacidadeAves) }} aves)
                 </option>
               }
             </select>
@@ -80,6 +83,8 @@ import { hoje } from '../nucleo/formato';
               }
             </select>
           </label>
+        </div>
+        <div class="linha-campos">
           <label>
             Data de alojamento
             <input
@@ -93,13 +98,16 @@ import { hoje } from '../nucleo/formato';
             }
           </label>
           <label>
-            Quantidade prevista (aves)
-            <input
-              type="number"
-              name="quantidade"
-              min="1"
-              [(ngModel)]="dados.quantidadePrevista"
-            />
+            Quantidade prevista
+            <span class="campo-unidade">
+              <input
+                type="number"
+                name="quantidade"
+                min="1"
+                [(ngModel)]="dados.quantidadePrevista"
+              />
+              <span>aves</span>
+            </span>
             @if (erros()['quantidadePrevista']) {
               <span class="erro-campo">{{
                 erros()['quantidadePrevista']
@@ -107,40 +115,61 @@ import { hoje } from '../nucleo/formato';
             }
           </label>
           <label>
-            Origem / incubatório (opcional)
-            <input name="origem" [(ngModel)]="dados.origem" />
-          </label>
-          <label>
-            Idade dos pintos no alojamento (dias)
-            <input
-              type="number"
-              name="idade"
-              min="0"
-              [(ngModel)]="dados.idadeInicialDias"
-            />
-          </label>
-          <label>
-            Peso médio do pinto (g, opcional)
-            <input
-              type="number"
-              name="pesoPinto"
-              min="0"
-              step="0.1"
-              [(ngModel)]="dados.pesoPintoG"
-            />
-          </label>
-          <label>
-            Custo por pinto (R$, opcional)
-            <input
-              type="number"
-              name="custo"
-              min="0"
-              step="0.01"
-              [(ngModel)]="dados.custoPinto"
-            />
+            Idade dos pintos no alojamento
+            <span class="campo-unidade">
+              <input
+                type="number"
+                name="idade"
+                min="0"
+                [(ngModel)]="dados.idadeInicialDias"
+              />
+              <span>dias</span>
+            </span>
           </label>
         </div>
-        <button type="submit" [disabled]="enviando()">Cadastrar lote</button>
+        <details class="mais">
+          <summary>Origem, peso e custo do pinto</summary>
+          <div class="linha-campos">
+            <label>
+              Origem / incubatório (opcional)
+              <input name="origem" [(ngModel)]="dados.origem" />
+            </label>
+            <label>
+              Peso médio do pinto (opcional)
+              <span class="campo-unidade">
+                <input
+                  type="number"
+                  name="pesoPinto"
+                  min="0"
+                  step="0.1"
+                  [(ngModel)]="dados.pesoPintoG"
+                />
+                <span>g</span>
+              </span>
+            </label>
+            <label>
+              Custo por pinto (opcional)
+              <span class="campo-unidade prefixo">
+                <input
+                  type="number"
+                  name="custo"
+                  min="0"
+                  step="0.01"
+                  [(ngModel)]="dados.custoPinto"
+                />
+                <span>R$</span>
+              </span>
+            </label>
+          </div>
+          <span class="ajuda"
+            >Sem o custo do pinto, ele fica fora do custo total do lote.</span
+          >
+        </details>
+        <div>
+          <button type="submit" [disabled]="enviando()">
+            {{ enviando() ? 'Cadastrando…' : 'Cadastrar lote' }}
+          </button>
+        </div>
       </form>
     }
   `,
@@ -150,6 +179,7 @@ export class NovoLote {
   private readonly dialogos = inject(Dialogos);
   private readonly router = inject(Router);
   protected readonly atual = inject(FazendaAtual);
+  protected readonly num = formatarNumero;
 
   protected readonly hoje = hoje();
   protected readonly linhagens = LINHAGENS;

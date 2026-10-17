@@ -1,4 +1,4 @@
-import { Perfil } from '@crista/domain';
+import { Indicador, NivelAlerta, Perfil } from '@crista/domain';
 
 export interface Usuario {
   id: string;
@@ -40,4 +40,31 @@ export interface Vinculo {
   galpoes: string[];
   validoAte: string | null;
   status: 'pendente' | 'ativo' | 'expirado' | 'revogado';
+}
+
+/** Lote em andamento no resumo da fazenda (página inicial). */
+export interface LoteNoResumo {
+  id: string;
+  codigo: string;
+  galpao: string;
+  linhagem: 'cobb500' | 'ross308' | 'hubbard' | 'outra';
+  dataAlojamento: string;
+  idadeDias: number;
+  saldoAves: number | null;
+  mortalidade: Indicador;
+  mortalidadeHoje: { percentual: Indicador; nivel: NivelAlerta | null };
+  pesoMedioG: Indicador;
+  ultimaPesagem: string | null;
+  situacaoMeta: 'abaixo' | 'dentro' | 'acima' | null;
+  carenciaAte: string | null;
+  alertas: { abertos: number; criticos: number };
+}
+
+/** GET fazendas/:id/resumo, só com os galpões do vínculo. */
+export interface ResumoFazenda {
+  lotes: LoteNoResumo[];
+  saldoAves: number;
+  galpoes: { total: number; ocupados: number };
+  alertas: { abertos: number; criticos: number };
+  equipamentosParados: { total: number; criticos: number };
 }

@@ -1,5 +1,13 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  ElementRef,
+  inject,
+  OnInit,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   NOME_TIPO_OCORRENCIA,
@@ -12,6 +20,7 @@ import { firstValueFrom } from 'rxjs';
 import { FazendaAtual } from '../fazendas/fazenda-atual';
 import { ErrosCampo, mensagemErro, validar } from '../nucleo/erros';
 import { formatarData, hoje } from '../nucleo/formato';
+import { PrimeiroCampo } from '../nucleo/primeiro-campo';
 import { LoteAtual } from './lote-atual';
 import { Ocorrencia } from './tipos';
 
@@ -31,15 +40,29 @@ const vazio = () => ({
 /** UC08 (registrar ocorrência) e UC09 (histórico sanitário). */
 @Component({
   selector: 'crista-aba-sanidade',
-  imports: [FormsModule],
+  imports: [FormsModule, PrimeiroCampo],
   template: `
     @if (erro()) {
       <p class="aviso" role="alert">{{ erro() }}</p>
     }
+    @if (aviso()) {
+      <p class="aviso sucesso" role="status">{{ aviso() }}</p>
+    }
+    @if (emCarencia().length > 0) {
+      <div class="aviso atencao">
+        <span
+          ><strong>⚠ Produtos em carência:</strong>
+          @for (c of emCarencia(); track c.idOcorrencia; let ultimo = $last) {
+            {{ c.produto }} até {{ data(c.dataFimCarencia)
+            }}{{ ultimo ? '.' : ';' }}
+          }
+        </span>
+      </div>
+    }
     @if (podeLancar()) {
       <form class="cartao formulario" (ngSubmit)="enviar()">
         <h3>Registrar ocorrência sanitária</h3>
-        <div class="grade-2">
+        <div class="linha-campos">
           <label>
             Tipo
             <select name="tipo" [(ngModel)]="dados.tipo">
@@ -60,16 +83,20 @@ const vazio = () => ({
               <span class="erro-campo">{{ erros()['data'] }}</span>
             }
           </label>
+          <label class="descricao">
+            Descrição
+            <input
+              cristaPrimeiroCampo
+              name="descricao"
+              [(ngModel)]="dados.descricao"
+            />
+            @if (erros()['descricao']) {
+              <span class="erro-campo">{{ erros()['descricao'] }}</span>
+            }
+          </label>
         </div>
-        <label>
-          Descrição
-          <input name="descricao" [(ngModel)]="dados.descricao" />
-          @if (erros()['descricao']) {
-            <span class="erro-campo">{{ erros()['descricao'] }}</span>
-          }
-        </label>
         @if (comProduto()) {
-          <div class="grade-2">
+          <div class="linha-campos">
             <label>
               Produto
               <input name="produto" [(ngModel)]="dados.produto" />
@@ -108,49 +135,48 @@ const vazio = () => ({
               }
             </label>
             <label>
-              Carência (dias)
-              <input
-                type="number"
-                name="carencia"
-                min="0"
-                [(ngModel)]="dados.carenciaDias"
-              />
+              Carência
+              <span class="campo-unidade">
+                <input
+                  type="number"
+                  name="carencia"
+                  min="0"
+                  [(ngModel)]="dados.carenciaDias"
+                />
+                <span>dias</span>
+              </span>
               @if (erros()['carenciaDias']) {
                 <span class="erro-campo">{{ erros()['carenciaDias'] }}</span>
               }
             </label>
           </div>
         }
-        <label>
-          Anexo (opcional: foto ou laudo em JPG, PNG ou PDF, até 10 MB)
-          <input
-            type="file"
-            accept="image/jpeg,image/png,application/pdf"
-            (change)="escolherArquivo($event)"
-          />
-        </label>
+        <details class="mais">
+          <summary>Anexar foto ou laudo</summary>
+          <label class="anexo">
+            Arquivo (JPG, PNG ou PDF, até 10 MB)
+            <input
+              #campoArquivo
+              type="file"
+              accept="image/jpeg,image/png,application/pdf"
+              (change)="escolherArquivo($event)"
+            />
+          </label>
+        </details>
         <div>
-          <button type="submit" [disabled]="enviando()">Registrar</button>
+          <button type="submit" [disabled]="enviando()">
+            {{ enviando() ? 'Registrando…' : 'Registrar ocorrência' }}
+          </button>
         </div>
       </form>
-    }
-
-    @if (emCarencia().length > 0) {
-      <section class="cartao">
-        <h3>Produtos em carência</h3>
-        <ul>
-          @for (c of emCarencia(); track c.idOcorrencia) {
-            <li>{{ c.produto }}: até {{ data(c.dataFimCarencia) }}</li>
-          }
-        </ul>
-      </section>
     }
 
     <section class="cartao">
       <div class="cabecalho-secao">
         <h3>Histórico sanitário</h3>
-        <div class="filtros">
+        <div class="acoes">
           <select
+            class="filtro"
             [(ngModel)]="filtroTipo"
             (ngModelChange)="carregar()"
             aria-label="Filtrar por tipo"
@@ -170,68 +196,115 @@ const vazio = () => ({
           </label>
         </div>
       </div>
-      @for (o of ocorrencias(); track o.id) {
-        <article class="ocorrencia" [class.estornado]="o.estorno">
-          <div class="cabecalho-secao">
-            <strong>{{ data(o.data) }} · {{ nomeTipo[o.tipo] }}</strong>
-            @if (o.estorno) {
-              <span class="etiqueta inativo" [title]="o.estorno.motivo"
-                >Estornada</span
+      <div class="lista">
+        @for (o of ocorrencias(); track o.id) {
+          <article class="ocorrencia" [class.estornada]="o.estorno">
+            <div class="linha">
+              <strong class="riscar"
+                ><span class="num">{{ data(o.data) }}</span> ·
+                {{ nomeTipo[o.tipo] }}</strong
               >
-            } @else if (o.carenciaVigente) {
-              <span class="etiqueta pendente"
-                >Carência até {{ data(o.dataFimCarencia) }}</span
-              >
+              @if (o.estorno) {
+                <span class="etiqueta">Estornada</span>
+              } @else if (o.carenciaVigente) {
+                <span class="etiqueta atencao"
+                  >⚠ Carência até {{ data(o.dataFimCarencia) }}</span
+                >
+              }
+              @if (podeLancar() && !o.estorno) {
+                <button
+                  type="button"
+                  class="fantasma pequeno estornar"
+                  (click)="estornar(o)"
+                >
+                  Estornar
+                </button>
+              }
+            </div>
+            <p class="riscar">{{ o.descricao }}</p>
+            @if (o.produto) {
+              <p class="suave riscar">
+                {{ o.produto }} · {{ o.dose }} ·
+                {{ nomeVia[$any(o.via)] ?? o.via }} · lote {{ o.loteProduto }} ·
+                carência de {{ o.carenciaDias }} dias
+              </p>
             }
-          </div>
-          <p>{{ o.descricao }}</p>
-          @if (o.produto) {
             <p class="suave">
-              {{ o.produto }} · {{ o.dose }} ·
-              {{ nomeVia[$any(o.via)] ?? o.via }} · lote {{ o.loteProduto }} ·
-              carência de {{ o.carenciaDias }} dias
+              Veterinário: {{ o.veterinario ?? '—' }}
+              @for (a of o.anexos; track a.id) {
+                ·
+                <a
+                  href=""
+                  (click)="$event.preventDefault(); abrirAnexo(a.id)"
+                  >{{ a.nome }}</a
+                >
+              }
             </p>
-          }
-          <p class="suave">
-            Veterinário: {{ o.veterinario ?? '—' }}
-            @for (a of o.anexos; track a.id) {
-              ·
-              <a href="" (click)="$event.preventDefault(); abrirAnexo(a.id)">{{
-                a.nome
-              }}</a>
+            @if (o.estorno) {
+              <p class="motivo">Estornada: {{ o.estorno.motivo }}</p>
             }
-          </p>
-          @if (podeLancar() && !o.estorno) {
-            <button type="button" class="secundario" (click)="estornar(o)">
-              Corrigir
-            </button>
-          }
-        </article>
-      } @empty {
-        <p class="suave">Nenhuma ocorrência registrada.</p>
-      }
+          </article>
+        } @empty {
+          <p class="suave">Nenhuma ocorrência registrada.</p>
+        }
+      </div>
     </section>
   `,
   styles: `
-    .filtros {
-      display: flex;
-      gap: 1rem;
-      align-items: center;
-      flex-wrap: wrap;
+    .descricao {
+      grid-column: span 2;
     }
-    .filtros select {
+    .anexo {
+      max-width: 420px;
+    }
+    .filtro {
       width: auto;
     }
+    .lista {
+      margin: 0 calc(-1 * var(--espaco-5)) calc(-1 * var(--espaco-5));
+      border-top: 1px solid var(--borda);
+    }
+    .lista > .suave {
+      margin: 0;
+      padding: var(--espaco-4) var(--espaco-5);
+    }
     .ocorrencia {
+      display: grid;
+      gap: var(--espaco-1);
+      padding: var(--espaco-4) var(--espaco-5);
       border-bottom: 1px solid var(--borda);
-      padding: 0.75rem 0;
+    }
+    .ocorrencia:last-child {
+      border-bottom: 0;
     }
     .ocorrencia p {
-      margin: 0.25rem 0;
+      margin: 0;
     }
-    .estornado > p {
-      text-decoration: line-through;
+    .linha {
+      display: flex;
+      align-items: center;
+      gap: var(--espaco-3);
+    }
+    .estornar {
+      margin-left: auto;
+    }
+    .estornada {
       color: var(--texto-suave);
+    }
+    .estornada .riscar {
+      text-decoration: line-through;
+    }
+    .motivo {
+      font-size: 12px;
+      color: var(--critico);
+    }
+    @media (max-width: 640px) {
+      .descricao {
+        grid-column: auto;
+      }
+      .lista {
+        margin: 0 calc(-1 * var(--espaco-4)) calc(-1 * var(--espaco-4));
+      }
     }
   `,
 })
@@ -249,6 +322,9 @@ export class AbaSanidade implements OnInit {
   protected readonly podeLancar = computed(
     () => this.fazenda.pode('sanidade.registrar') && this.lote.emAndamento(),
   );
+  private readonly primeiro = viewChild(PrimeiroCampo);
+  private readonly campoArquivo =
+    viewChild<ElementRef<HTMLInputElement>>('campoArquivo');
   protected dados = vazio();
   protected filtroTipo = '';
   protected filtroCarencia = false;
@@ -259,6 +335,7 @@ export class AbaSanidade implements OnInit {
   >([]);
   protected readonly erros = signal<ErrosCampo>({});
   protected readonly erro = signal('');
+  protected readonly aviso = signal('');
   protected readonly enviando = signal(false);
 
   ngOnInit(): Promise<void> {
@@ -296,6 +373,7 @@ export class AbaSanidade implements OnInit {
 
     this.enviando.set(true);
     this.erro.set('');
+    this.aviso.set('');
     try {
       const criada = await firstValueFrom(
         this.http.post<{ id: string }>(
@@ -318,8 +396,14 @@ export class AbaSanidade implements OnInit {
           );
         }
       }
+      if (!this.erro())
+        this.aviso.set(`${NOME_TIPO_OCORRENCIA[v.dados.tipo]} registrada.`);
+      // Pronto para o próximo registro: limpa também o arquivo escolhido.
       this.dados = vazio();
       this.arquivo = null;
+      const campoArquivo = this.campoArquivo()?.nativeElement;
+      if (campoArquivo) campoArquivo.value = '';
+      this.primeiro()?.focar();
       await Promise.all([this.carregar(), this.lote.recarregar()]);
     } catch (e) {
       this.erro.set(mensagemErro(e));

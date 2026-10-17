@@ -1,5 +1,12 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  inject,
+  OnInit,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { pesagemSchema } from '@crista/domain';
 import { firstValueFrom } from 'rxjs';
@@ -17,6 +24,7 @@ import {
   formatarNumero,
   hoje,
 } from '../nucleo/formato';
+import { PrimeiroCampo } from '../nucleo/primeiro-campo';
 import { LoteAtual } from './lote-atual';
 import { PesagemLinha } from './tipos';
 
@@ -41,20 +49,25 @@ function lerPesos(texto: string): number[] {
 /** UC10: pesagem amostral. */
 @Component({
   selector: 'crista-aba-pesagens',
-  imports: [FormsModule],
+  imports: [FormsModule, PrimeiroCampo],
   template: `
     @if (erro()) {
       <p class="aviso" role="alert">{{ erro() }}</p>
     }
     @if (aviso()) {
-      <p class="aviso" [class.sucesso]="!avisoRuim()" role="status">
+      <p
+        class="aviso"
+        [class.sucesso]="!avisoRuim()"
+        [class.atencao]="avisoRuim()"
+        role="status"
+      >
         {{ aviso() }}
       </p>
     }
     @if (podeLancar()) {
       <form class="cartao formulario" (ngSubmit)="enviar()">
         <h3>Registrar pesagem</h3>
-        <div class="grade-2">
+        <div class="linha-campos topo">
           <label>
             Data
             <input
@@ -68,14 +81,6 @@ function lerPesos(texto: string): number[] {
             }
           </label>
           <label>
-            Ponto de coleta (opcional)
-            <input
-              name="ponto"
-              placeholder="Ex.: meio do galpão"
-              [(ngModel)]="dados.pontoColeta"
-            />
-          </label>
-          <label>
             Como informar
             <select name="modo" [(ngModel)]="dados.modo">
               <option value="individual">
@@ -87,21 +92,30 @@ function lerPesos(texto: string): number[] {
         </div>
         @if (dados.modo === 'individual') {
           <label>
-            Pesos individuais em gramas, separados por espaço, vírgula ou linha
+            Pesos individuais
             <textarea
+              cristaPrimeiroCampo
               name="pesos"
               inputmode="decimal"
-              rows="4"
+              rows="3"
               [(ngModel)]="dados.pesosTexto"
+              (keydown.control.enter)="enviar()"
               placeholder="1020, 980, 1100, 1045 …"
             ></textarea>
-            <span class="suave">{{ contagem() }}</span>
+            <span class="ajuda"
+              >Em gramas, separados por espaço, vírgula ou linha.
+              <kbd>Ctrl</kbd> + <kbd>Enter</kbd> registra.
+              @if (contagem()) {
+                <strong>{{ contagem() }}</strong>
+              }
+            </span>
           </label>
         } @else {
-          <div class="grade-2">
+          <div class="linha-campos topo">
             <label>
               Aves pesadas
               <input
+                cristaPrimeiroCampo
                 type="number"
                 name="aves"
                 inputmode="numeric"
@@ -110,23 +124,39 @@ function lerPesos(texto: string): number[] {
               />
             </label>
             <label>
-              Peso total (kg)
-              <input
-                type="number"
-                name="total"
-                inputmode="decimal"
-                min="0"
-                step="0.001"
-                [(ngModel)]="dados.pesoTotalKg"
-              />
+              Peso total
+              <span class="campo-unidade">
+                <input
+                  type="number"
+                  name="total"
+                  inputmode="decimal"
+                  min="0"
+                  step="0.001"
+                  [(ngModel)]="dados.pesoTotalKg"
+                />
+                <span>kg</span>
+              </span>
             </label>
           </div>
         }
         @if (erros()['pesosIndividuaisG']) {
           <span class="erro-campo">{{ erros()['pesosIndividuaisG'] }}</span>
         }
+        <details class="mais">
+          <summary>Mais detalhes</summary>
+          <label class="ponto">
+            Ponto de coleta (opcional)
+            <input
+              name="ponto"
+              placeholder="Ex.: meio do galpão"
+              [(ngModel)]="dados.pontoColeta"
+            />
+          </label>
+        </details>
         <div>
-          <button type="submit" [disabled]="enviando()">Registrar</button>
+          <button type="submit" [disabled]="enviando()">
+            {{ enviando() ? 'Registrando…' : 'Registrar pesagem' }}
+          </button>
         </div>
       </form>
     }
@@ -137,42 +167,46 @@ function lerPesos(texto: string): number[] {
         <table class="tabela">
           <thead>
             <tr>
-              <th>Data</th>
-              <th>Idade</th>
-              <th>Aves</th>
-              <th>Peso médio</th>
-              <th>Uniformidade</th>
-              <th>Ponto</th>
-              <th></th>
+              <th class="num">Data</th>
+              <th class="num">Idade</th>
+              <th class="num">Aves pesadas</th>
+              <th class="num">Peso médio</th>
+              <th class="num">Uniformidade</th>
+              <th>Ponto de coleta</th>
+              <th class="acao"><span class="visivel-leitor">Ações</span></th>
             </tr>
           </thead>
           <tbody>
             @for (p of pesagens(); track p.id) {
-              <tr [class.estornado]="p.estorno">
-                <td>{{ data(p.data) }}</td>
-                <td>{{ p.idadeDias }} d</td>
-                <td>{{ num(p.avesPesadas) }}</td>
-                <td>{{ num(p.pesoMedioG) }} g</td>
+              <tr [class.estornada]="p.estorno">
+                <td class="num riscar">{{ data(p.data) }}</td>
+                <td class="num riscar">{{ p.idadeDias }} d</td>
+                <td class="num riscar">{{ num(p.avesPesadas) }}</td>
+                <td class="num riscar">{{ num(p.pesoMedioG) }} g</td>
                 <td
+                  class="num riscar"
                   [title]="
                     p.uniformidade.disponivel ? '' : p.uniformidade.motivo
                   "
                 >
-                  {{ ind(p.uniformidade, 1, '%') }}
+                  {{ ind(p.uniformidade, 1, ' %') }}
                 </td>
-                <td>{{ p.pontoColeta ?? '—' }}</td>
                 <td>
+                  <span class="riscar">{{ p.pontoColeta ?? '—' }}</span>
                   @if (p.estorno) {
-                    <span class="etiqueta inativo" [title]="p.estorno.motivo"
-                      >Estornada</span
+                    <span class="motivo-estorno"
+                      >Estornada: {{ p.estorno.motivo }}</span
                     >
-                  } @else if (podeLancar()) {
+                  }
+                </td>
+                <td class="acao">
+                  @if (!p.estorno && podeLancar()) {
                     <button
                       type="button"
-                      class="secundario"
+                      class="fantasma pequeno"
                       (click)="estornar(p)"
                     >
-                      Corrigir
+                      Estornar
                     </button>
                   }
                 </td>
@@ -188,16 +222,21 @@ function lerPesos(texto: string): number[] {
     </section>
   `,
   styles: `
-    textarea {
-      font: inherit;
-      padding: 0.55rem 0.7rem;
-      border: 1px solid var(--borda);
-      border-radius: 6px;
-      width: 100%;
+    .topo {
+      grid-template-columns: 180px minmax(220px, 360px);
+      justify-content: start;
     }
-    .estornado td:not(:last-child) {
-      text-decoration: line-through;
-      color: var(--texto-suave);
+    .ponto {
+      max-width: 360px;
+    }
+    kbd {
+      font: inherit;
+      font-weight: 600;
+    }
+    @media (max-width: 640px) {
+      .topo {
+        grid-template-columns: 1fr;
+      }
     }
   `,
 })
@@ -214,6 +253,7 @@ export class AbaPesagens implements OnInit {
   protected readonly podeLancar = computed(
     () => this.fazenda.pode('pesagem.registrar') && this.lote.emAndamento(),
   );
+  private readonly primeiro = viewChild(PrimeiroCampo);
   protected dados = vazio();
   protected readonly pesagens = signal<PesagemLinha[]>([]);
   protected readonly erros = signal<ErrosCampo>({});
@@ -269,7 +309,9 @@ export class AbaPesagens implements OnInit {
       this.aviso.set(
         `Pesagem registrada: peso médio de ${formatarNumero(r.pesoMedioG)} g.${representatividade}`,
       );
-      this.dados = vazio();
+      // Pronto para a próxima pesagem, no mesmo modo de informar.
+      this.dados = { ...vazio(), modo: this.dados.modo };
+      this.primeiro()?.focar();
       await Promise.all([this.carregar(), this.lote.recarregar()]);
     } catch (e) {
       if (await confirmouAposAviso(e, this.dialogos)) return this.enviar(true);

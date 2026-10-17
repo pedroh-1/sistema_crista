@@ -14,6 +14,16 @@ export function formatarNumero(
   return valor == null ? '—' : numero(casas).format(valor);
 }
 
+const reais = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+});
+
+/** Valor em reais (R$ 1.250,00), ou travessão quando ausente. */
+export function formatarReais(valor: number | null | undefined): string {
+  return valor == null ? '—' : reais.format(valor);
+}
+
 /** Valor do indicador, ou travessão quando indisponível (o motivo vai no title). */
 export function formatarIndicador(
   i: Indicador,

@@ -15,117 +15,186 @@ const NOME_SITUACAO: Record<LoteResumido['situacao'], string> = {
 };
 
 const ATALHOS: { aba: string; rotulo: string; acao: Acao }[] = [
-  { aba: 'mortalidade', rotulo: '+ Baixa', acao: 'baixa.registrar' },
-  { aba: 'pesagens', rotulo: '+ Pesagem', acao: 'pesagem.registrar' },
-  { aba: 'racao', rotulo: '+ Ração', acao: 'racao.registrar' },
+  { aba: 'mortalidade', rotulo: 'Baixa', acao: 'baixa.registrar' },
+  { aba: 'pesagens', rotulo: 'Pesagem', acao: 'pesagem.registrar' },
+  { aba: 'racao', rotulo: 'Ração', acao: 'racao.registrar' },
 ];
 
 @Component({
   selector: 'crista-lista-lotes',
   imports: [RouterLink],
   template: `
+    <header class="cabecalho-secao">
+      <h1>Lotes</h1>
+      @if (atual.pode('lote.cadastrar')) {
+        <a class="botao" [routerLink]="atual.link('lotes', 'novo')"
+          >Cadastrar lote</a
+        >
+      }
+    </header>
     @if (erro()) {
       <p class="aviso" role="alert">{{ erro() }}</p>
     }
-    <section class="cartao">
-      <div class="cabecalho-secao">
-        <h2>Lotes em andamento</h2>
-        @if (atual.pode('lote.cadastrar')) {
-          <a class="botao" [routerLink]="atual.link('lotes', 'novo')"
-            >Cadastrar lote</a
+    @if (alertas().total > 0) {
+      <p class="aviso" [class.atencao]="alertas().criticos === 0">
+        <span>
+          <strong
+            >{{ alertas().criticos > 0 ? '‼' : '⚠' }}
+            {{ alertas().total }}
+            {{
+              alertas().total === 1 ? 'alerta aberto' : 'alertas abertos'
+            }}</strong
           >
-        }
+          @if (alertas().criticos > 0) {
+            ({{ alertas().criticos }}
+            {{ alertas().criticos === 1 ? 'crítico' : 'críticos' }})
+          }
+        </span>
+        <a class="acoes" [routerLink]="atual.link('alertas')">Ver alertas</a>
+      </p>
+    }
+
+    <h2>Em andamento</h2>
+    @if (carregando()) {
+      <div class="lotes">
+        <span class="esqueleto" style="height: 150px"></span>
+        <span class="esqueleto" style="height: 150px"></span>
       </div>
-      @for (lote of emAndamento(); track lote.id) {
-        <div class="lote-andamento">
-          <a class="linha-lote" [routerLink]="atual.link('lotes', lote.id)">
-            <strong>{{ lote.codigo }}</strong>
-            <span>{{ lote.galpao }}</span>
-            <span class="suave"
-              >{{ nomeLinhagem[lote.linhagem] }} · alojado em
-              {{ data(lote.dataAlojamento) }}</span
-            >
-            <span class="suave"
-              >{{ numero(lote.quantidadePrevista) }} aves previstas</span
-            >
-          </a>
-          <!-- Atalhos para quem lança no galpão, pelo celular -->
-          @if (atalhos().length > 0) {
-            <nav
-              class="atalhos"
-              [attr.aria-label]="'Lançar no lote ' + lote.codigo"
-            >
-              @for (a of atalhos(); track a.aba) {
-                <a
-                  class="botao secundario"
-                  [routerLink]="atual.link('lotes', lote.id, a.aba)"
-                  >{{ a.rotulo }}</a
+    } @else {
+      <div class="lotes">
+        @for (lote of emAndamento(); track lote.id) {
+          <article class="cartao lote">
+            <div class="linha">
+              <a class="codigo" [routerLink]="atual.link('lotes', lote.id)">{{
+                lote.codigo
+              }}</a>
+              @if (alertasDoLote(lote.id); as n) {
+                <span class="etiqueta critico"
+                  >‼ {{ n }} {{ n === 1 ? 'alerta' : 'alertas' }}</span
                 >
               }
-            </nav>
-          }
-        </div>
-      } @empty {
-        <p class="suave">Nenhum lote em andamento.</p>
-      }
-    </section>
+            </div>
+            <p class="suave">
+              {{ lote.galpao }} · {{ nomeLinhagem[lote.linhagem] }} · alojado em
+              {{ data(lote.dataAlojamento) }}
+            </p>
+            <p class="suave num">
+              {{ numero(lote.quantidadePrevista) }} aves previstas
+            </p>
+            @if (atalhos().length > 0) {
+              <nav
+                class="acoes"
+                [attr.aria-label]="'Lançar no lote ' + lote.codigo"
+              >
+                <span class="suave" aria-hidden="true">Lançar:</span>
+                @for (a of atalhos(); track a.aba) {
+                  <a
+                    class="botao secundario pequeno"
+                    [routerLink]="atual.link('lotes', lote.id, a.aba)"
+                    >{{ a.rotulo }}</a
+                  >
+                }
+              </nav>
+            }
+          </article>
+        } @empty {
+          <p class="suave">
+            Nenhum lote em andamento.
+            @if (atual.pode('lote.cadastrar')) {
+              <a [routerLink]="atual.link('lotes', 'novo')"
+                >Cadastre o próximo lote</a
+              >
+              quando os pintos chegarem.
+            }
+          </p>
+        }
+      </div>
+    }
 
     @if (anteriores().length > 0) {
-      <section class="cartao">
-        <h2>Lotes anteriores</h2>
-        @for (lote of anteriores(); track lote.id) {
-          <a class="linha-lote" [routerLink]="atual.link('lotes', lote.id)">
-            <strong>{{ lote.codigo }}</strong>
-            <span>{{ lote.galpao }}</span>
-            <span class="suave"
-              >{{ nomeLinhagem[lote.linhagem] }} · alojado em
-              {{ data(lote.dataAlojamento) }}</span
-            >
-            <span
-              class="etiqueta"
-              [class.inativo]="lote.situacao === 'cancelado'"
-              >{{ nomeSituacao[lote.situacao] }}</span
-            >
-          </a>
-        }
-      </section>
+      <h2>Lotes anteriores</h2>
+      <div class="tabela-moldura">
+        <table class="tabela">
+          <thead>
+            <tr>
+              <th>Lote</th>
+              <th>Galpão</th>
+              <th>Linhagem</th>
+              <th class="num">Alojamento</th>
+              <th class="num">Aves previstas</th>
+              <th>Situação</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (lote of anteriores(); track lote.id) {
+              <tr>
+                <td>
+                  <a [routerLink]="atual.link('lotes', lote.id)">{{
+                    lote.codigo
+                  }}</a>
+                </td>
+                <td>{{ lote.galpao }}</td>
+                <td>{{ nomeLinhagem[lote.linhagem] }}</td>
+                <td class="num">{{ data(lote.dataAlojamento) }}</td>
+                <td class="num">{{ numero(lote.quantidadePrevista) }}</td>
+                <td>
+                  <span
+                    class="etiqueta"
+                    [class.critico]="lote.situacao === 'cancelado'"
+                    >{{ nomeSituacao[lote.situacao] }}</span
+                  >
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
     }
   `,
   styles: `
-    .linha-lote {
+    h2 {
+      margin-top: var(--espaco-5);
+    }
+    .lotes {
       display: grid;
-      grid-template-columns: minmax(80px, 1fr) minmax(90px, 1fr) 2fr auto;
-      gap: 0.75rem;
-      align-items: center;
-      padding: 0.7rem 0.5rem;
-      border-bottom: 1px solid var(--borda);
-      text-decoration: none;
-      color: inherit;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: var(--espaco-4);
     }
-    .lote-andamento {
-      border-bottom: 1px solid var(--borda);
-      padding-bottom: 0.6rem;
+    .lote {
+      display: grid;
+      gap: var(--espaco-1);
+      margin: 0;
     }
-    .lote-andamento .linha-lote {
-      border-bottom: none;
+    .lote p {
+      margin: 0;
     }
-    .atalhos {
+    .linha {
       display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      padding: 0 0.5rem;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--espaco-2);
     }
-    .atalhos .botao {
-      flex: 1 1 auto;
-      text-align: center;
-      font-size: 0.9rem;
+    .codigo {
+      font-family: var(--font-titulo);
+      font-size: 20px;
+      line-height: 28px;
+      font-weight: 600;
+      color: var(--texto);
+      text-decoration: none;
     }
-    .linha-lote:hover {
-      background: var(--fundo);
+    .codigo:hover {
+      color: var(--primaria);
+      text-decoration: underline;
     }
-    @media (max-width: 600px) {
-      .linha-lote {
-        grid-template-columns: 1fr 1fr;
+    .lote .acoes {
+      margin-top: var(--espaco-3);
+    }
+    @media (max-width: 640px) {
+      .lotes {
+        grid-template-columns: 1fr;
+      }
+      .lote .acoes .botao {
+        flex: 1 1 auto;
       }
     }
   `,
@@ -140,6 +209,15 @@ export class ListaLotes implements OnInit {
   protected readonly numero = formatarNumero;
   protected readonly lotes = signal<LoteResumido[]>([]);
   protected readonly erro = signal('');
+  protected readonly carregando = signal(true);
+  /** Alertas abertos da fazenda, em destaque no topo da entrada. */
+  protected readonly alertas = computed(() => {
+    const abertos = this.atual.alertasAbertos();
+    return {
+      total: abertos.length,
+      criticos: abertos.filter((a) => a.criticidade === 'critico').length,
+    };
+  });
   protected readonly emAndamento = computed(() =>
     this.lotes().filter((l) => l.situacao === 'em_andamento'),
   );
@@ -160,6 +238,12 @@ export class ListaLotes implements OnInit {
       );
     } catch (e) {
       this.erro.set(mensagemErro(e));
+    } finally {
+      this.carregando.set(false);
     }
+  }
+
+  protected alertasDoLote(id: string): number {
+    return this.atual.alertasAbertos().filter((a) => a.loteId === id).length;
   }
 }

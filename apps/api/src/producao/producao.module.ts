@@ -14,7 +14,11 @@ import { RelatorioService } from './relatorio.service';
 import { EventosService } from './eventos.service';
 import { LoteContexto } from './lote-contexto';
 import { LotesService } from './lotes.service';
-import { LotesController } from './producao.controller';
+import {
+  LotesController,
+  ResumoFazendaController,
+} from './producao.controller';
+import { ResumoFazendaService } from './resumo-fazenda.service';
 
 /** Ciclo produtivo (UC05 a UC10), sanidade, anexos, custos e painel (UC11 a UC15). */
 @Module({
@@ -23,6 +27,7 @@ import { LotesController } from './producao.controller';
     SanidadeController,
     AnexosController,
     CustosController,
+    ResumoFazendaController,
   ],
   providers: [
     LoteContexto,
@@ -37,6 +42,7 @@ import { LotesController } from './producao.controller';
     DespesasService,
     PainelService,
     VisoesService,
+    ResumoFazendaService,
   ],
   exports: [DadosLote, LoteContexto, DespesasService],
 })

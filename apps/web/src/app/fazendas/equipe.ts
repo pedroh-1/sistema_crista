@@ -1,11 +1,12 @@
 import { HttpClient } from '@angular/common/http';
-import { DatePipe } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { conviteSchema, NOME_PERFIL, Perfil, PERFIS } from '@crista/domain';
 import { firstValueFrom } from 'rxjs';
 import { Dialogos } from '../nucleo/dialogos';
 import { ErrosCampo, mensagemErro, validar } from '../nucleo/erros';
+import { formatarData } from '../nucleo/formato';
+import { PrimeiroCampo } from '../nucleo/primeiro-campo';
 import { Vinculo } from '../nucleo/tipos';
 import { FazendaAtual } from './fazenda-atual';
 
@@ -26,21 +27,37 @@ const vazio = () => ({
 
 @Component({
   selector: 'crista-equipe',
-  imports: [FormsModule, DatePipe],
+  imports: [FormsModule, PrimeiroCampo],
   template: `
+    <header class="cabecalho-secao">
+      <h1>Equipe</h1>
+      @if (!formAberto()) {
+        <button type="button" (click)="formAberto.set(true)">
+          Convidar pessoa
+        </button>
+      }
+    </header>
     @if (erro()) {
       <p class="aviso" role="alert">{{ erro() }}</p>
     }
     @if (aviso()) {
-      <p class="aviso sucesso" role="status">{{ aviso() }}</p>
+      <p class="aviso sucesso" role="status">✓ {{ aviso() }}</p>
     }
-    <section class="cartao">
-      <h2>Convidar pessoa</h2>
-      <form class="formulario" (ngSubmit)="convidar()">
-        <div class="grade-2">
+    @if (formAberto()) {
+      <form class="cartao formulario" (ngSubmit)="convidar()">
+        <div class="cabecalho-secao">
+          <h3>Convidar pessoa</h3>
+          <span class="suave">O convite vale por 7 dias.</span>
+        </div>
+        <div class="linha-campos">
           <label>
             E-mail
-            <input type="email" name="email" [(ngModel)]="dados.email" />
+            <input
+              cristaPrimeiroCampo
+              type="email"
+              name="email"
+              [(ngModel)]="dados.email"
+            />
             @if (erros()['email']) {
               <span class="erro-campo">{{ erros()['email'] }}</span>
             }
@@ -76,91 +93,92 @@ const vazio = () => ({
         </div>
         @if (atual.galpoes().length > 0) {
           <fieldset>
-            <legend class="suave">
-              Galpões permitidos (nenhum marcado = todos)
-            </legend>
-            @for (g of atual.galpoes(); track g.id) {
-              <label class="caixa">
-                <input
-                  type="checkbox"
-                  [checked]="dados.galpoes.includes(g.id)"
-                  (change)="alternarGalpao(g.id)"
-                />
-                {{ g.identificacao }}
-              </label>
-            }
+            <legend>Galpões permitidos (nenhum marcado = todos)</legend>
+            <div class="opcoes">
+              @for (g of atual.galpoes(); track g.id) {
+                <label class="opcao">
+                  <input
+                    type="checkbox"
+                    [checked]="dados.galpoes.includes(g.id)"
+                    (change)="alternarGalpao(g.id)"
+                  />
+                  {{ g.identificacao }}
+                </label>
+              }
+            </div>
           </fieldset>
         }
-        <div>
-          <button type="submit" [disabled]="enviando()">Enviar convite</button>
-          <span class="suave">&nbsp;O convite vale por 7 dias.</span>
+        <div class="acoes">
+          <button type="submit" [disabled]="enviando()">
+            {{ enviando() ? 'Enviando…' : 'Enviar convite' }}
+          </button>
+          <button
+            type="button"
+            class="fantasma"
+            (click)="formAberto.set(false)"
+          >
+            Cancelar
+          </button>
         </div>
       </form>
-    </section>
+    }
 
-    <section class="cartao">
-      <h2>Pessoas com acesso</h2>
-      <div class="rolagem">
-        <table class="tabela">
-          <thead>
+    <div class="tabela-moldura">
+      <table class="tabela">
+        <thead>
+          <tr>
+            <th>Pessoa</th>
+            <th>Perfil</th>
+            <th>Galpões</th>
+            <th class="num">Validade</th>
+            <th>Situação</th>
+            <th class="acao"><span class="visivel-leitor">Ações</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (v of vinculos(); track v.id) {
             <tr>
-              <th>Pessoa</th>
-              <th>Perfil</th>
-              <th>Galpões</th>
-              <th>Validade</th>
-              <th>Situação</th>
-              <th></th>
+              <td>
+                {{ v.nome ?? v.email }}
+                @if (v.nome) {
+                  <span class="secundaria">{{ v.email }}</span>
+                }
+              </td>
+              <td>
+                {{ nomePerfil[v.perfil] }}
+                @if (v.crmv) {
+                  <span class="secundaria">CRMV {{ v.crmv }}</span>
+                }
+              </td>
+              <td>{{ nomesGalpoes(v.galpoes) }}</td>
+              <td class="num">{{ data(v.validoAte) }}</td>
+              <td>
+                <span class="etiqueta" [class]="v.status">{{
+                  nomeStatus[v.status]
+                }}</span>
+              </td>
+              <td class="acao">
+                @if (v.status === 'ativo' || v.status === 'pendente') {
+                  <button
+                    type="button"
+                    class="fantasma pequeno"
+                    (click)="revogar(v)"
+                  >
+                    Revogar
+                  </button>
+                }
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            @for (v of vinculos(); track v.id) {
-              <tr>
-                <td>
-                  {{ v.nome ?? v.email }}
-                  @if (v.nome) {
-                    <br /><span class="suave">{{ v.email }}</span>
-                  }
-                </td>
-                <td>
-                  {{ nomePerfil[v.perfil] }}
-                  @if (v.crmv) {
-                    <br /><span class="suave">CRMV {{ v.crmv }}</span>
-                  }
-                </td>
-                <td>{{ nomesGalpoes(v.galpoes) }}</td>
-                <td>
-                  {{
-                    v.validoAte
-                      ? (v.validoAte | date: 'dd/MM/yyyy' : 'UTC')
-                      : '—'
-                  }}
-                </td>
-                <td>
-                  <span class="etiqueta" [class]="v.status">{{
-                    nomeStatus[v.status]
-                  }}</span>
-                </td>
-                <td>
-                  @if (v.status === 'ativo' || v.status === 'pendente') {
-                    <button type="button" class="perigo" (click)="revogar(v)">
-                      Revogar
-                    </button>
-                  }
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    </section>
+          }
+        </tbody>
+      </table>
+    </div>
   `,
   styles: `
-    fieldset {
-      border: 1px solid var(--borda);
-      border-radius: 6px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem 1.25rem;
+    .secundaria {
+      display: block;
+      font-size: 13px;
+      color: var(--texto-suave);
     }
   `,
 })
@@ -172,6 +190,8 @@ export class Equipe implements OnInit {
   protected readonly perfis = PERFIS;
   protected readonly nomePerfil = NOME_PERFIL;
   protected readonly nomeStatus = NOME_STATUS;
+  protected readonly data = formatarData;
+  protected readonly formAberto = signal(false);
   protected dados = vazio();
   protected readonly vinculos = signal<Vinculo[]>([]);
   protected readonly erros = signal<ErrosCampo>({});
@@ -216,6 +236,7 @@ export class Equipe implements OnInit {
       );
       this.aviso.set(`Convite enviado para ${v.dados.email}.`);
       this.dados = vazio();
+      this.formAberto.set(false);
       await this.carregar();
     } catch (e) {
       this.erro.set(mensagemErro(e));

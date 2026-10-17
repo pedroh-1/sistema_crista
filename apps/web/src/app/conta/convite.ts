@@ -31,8 +31,8 @@ interface DadosConvite {
             >.
           </p>
           @if (c.expirado) {
-            <p class="aviso">
-              Este convite expirou. Peça um novo ao Gestor da fazenda.
+            <p class="aviso atencao">
+              ⚠ Este convite expirou. Peça um novo ao Gestor da fazenda.
             </p>
           } @else if (sessao.logado()) {
             @if (sessao.usuario()?.email === c.email) {
@@ -45,7 +45,7 @@ interface DadosConvite {
                 {{ sessao.usuario()?.email }}.
                 <button
                   type="button"
-                  class="secundario"
+                  class="secundario pequeno"
                   (click)="sessao.sair()"
                 >
                   Sair
@@ -56,14 +56,13 @@ interface DadosConvite {
             <p class="suave">
               Para aceitar, entre ou crie uma conta com o e-mail {{ c.email }}.
             </p>
-            <p>
+            <p class="acoes">
               <a
                 class="botao"
                 routerLink="/entrar"
                 [queryParams]="{ voltar: urlAtual }"
                 >Entrar</a
               >
-              &nbsp;
               <a
                 class="botao secundario"
                 routerLink="/cadastro"

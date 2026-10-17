@@ -3,14 +3,16 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { loginSchema } from '@crista/domain';
 import { ErrosCampo, mensagemErro, validar } from '../nucleo/erros';
+import { PrimeiroCampo } from '../nucleo/primeiro-campo';
 import { Sessao } from '../nucleo/sessao';
 
 @Component({
   selector: 'crista-entrar',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, PrimeiroCampo],
   template: `
     <main class="pagina-estreita">
       <h1>Entrar no CRISTA</h1>
+      <p class="suave">Gestão de lotes de frango de corte.</p>
       <form class="cartao formulario" (ngSubmit)="enviar()">
         @if (erro()) {
           <p class="aviso" role="alert">{{ erro() }}</p>
@@ -18,6 +20,7 @@ import { Sessao } from '../nucleo/sessao';
         <label>
           E-mail
           <input
+            cristaPrimeiroCampo
             type="email"
             name="email"
             autocomplete="email"

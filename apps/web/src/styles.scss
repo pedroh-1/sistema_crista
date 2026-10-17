@@ -192,6 +192,11 @@ a {
 .formulario {
   display: grid;
   gap: var(--espaco-3);
+
+  /* O espaço entre os blocos vem do gap da grade. */
+  > :is(h2, h3, p, .cabecalho-secao) {
+    margin: 0;
+  }
 }
 
 .linha-campos,
@@ -244,6 +249,17 @@ input.num {
   font-variant-numeric: tabular-nums;
 }
 
+/* As setas do campo numérico não ajudam a digitar e cobrem a unidade. */
+input[type='number'] {
+  appearance: textfield;
+
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    appearance: none;
+    margin: 0;
+  }
+}
+
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
@@ -284,6 +300,19 @@ label:has(.erro-campo) :is(input, select, textarea) {
     font-weight: 400;
     pointer-events: none;
   }
+
+  /* Moeda vem antes do número: R$ 1.250,00. */
+  &.prefixo {
+    input {
+      padding-right: var(--espaco-3);
+      padding-left: 40px;
+    }
+
+    > span {
+      right: auto;
+      left: var(--espaco-3);
+    }
+  }
 }
 
 label.caixa {
@@ -297,6 +326,62 @@ label.caixa {
   input {
     width: 18px;
     height: 18px;
+    min-height: 0;
+    accent-color: var(--primaria);
+  }
+}
+
+fieldset {
+  display: grid;
+  gap: var(--espaco-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+legend {
+  padding: 0;
+  margin-bottom: var(--espaco-2);
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--texto-suave);
+}
+
+/* Opção marcável em grupo (lotes de uma despesa, lotes do painel). */
+.opcoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espaco-2);
+}
+
+label.opcao {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espaco-2);
+  min-height: var(--altura-controle);
+  padding: 0 var(--espaco-3);
+  border: 1px solid var(--borda-campo);
+  border-radius: var(--raio-sm);
+  background: var(--superficie);
+  color: var(--texto);
+  font-size: 14px;
+  cursor: pointer;
+
+  &:has(> input:checked) {
+    border-color: var(--primaria);
+    background: var(--primaria-suave);
+  }
+
+  &:has(> input:disabled) {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  > input {
+    width: 16px;
+    height: 16px;
     min-height: 0;
     accent-color: var(--primaria);
   }
@@ -574,6 +659,12 @@ button,
 
   &.sem-valor .valor {
     color: var(--texto-suave);
+  }
+
+  /* Valores longos, como reais: tamanho menor para caber no cartão. */
+  &.compacto .valor {
+    font-size: 22px;
+    line-height: 30px;
   }
 
   &.critico {

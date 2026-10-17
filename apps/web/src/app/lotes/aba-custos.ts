@@ -2,11 +2,12 @@ import { HttpClient } from '@angular/common/http';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { Indicador, NOME_CATEGORIA } from '@crista/domain';
+import { NOME_CATEGORIA } from '@crista/domain';
 import { firstValueFrom } from 'rxjs';
 import { FazendaAtual } from '../fazendas/fazenda-atual';
 import { mensagemErro } from '../nucleo/erros';
-import { formatarData, formatarNumero } from '../nucleo/formato';
+import { CartaoIndicador } from '../nucleo/cartao-indicador';
+import { formatarData, formatarNumero, formatarReais } from '../nucleo/formato';
 import { LoteAtual } from './lote-atual';
 import { FinanceiroLote } from './tipos';
 
@@ -21,10 +22,6 @@ interface ParcelaLote {
   percentual: number;
 }
 
-const reais = new Intl.NumberFormat('pt-BR', {
-  style: 'currency',
-  currency: 'BRL',
-});
 const NOMES: Partial<Record<string, string>> = {
   ...NOME_CATEGORIA,
   pintos: 'Pintos',
@@ -33,115 +30,147 @@ const NOMES: Partial<Record<string, string>> = {
 /** UC14: indicadores econômico-financeiros do lote. */
 @Component({
   selector: 'crista-aba-custos',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, CartaoIndicador],
   template: `
     @if (erro()) {
       <p class="aviso" role="alert">{{ erro() }}</p>
     }
     @if (fin(); as f) {
       @if (!f.custoPintoInformado) {
-        <p class="aviso">
-          O custo dos pintos não foi informado no cadastro do lote e está fora
+        <p class="aviso atencao">
+          ⚠ O custo dos pintos não foi informado no cadastro do lote e está fora
           do custo total.
         </p>
       }
-      <div class="indicadores">
-        <div class="indicador">
-          <span class="rotulo">Custo total</span
-          ><strong>{{ brl(f.custoTotal) }}</strong>
-        </div>
-        <div class="indicador" [title]="motivo(f.custoPorAveAlojada)">
-          <span class="rotulo">Custo por ave alojada</span
-          ><strong>{{ brlInd(f.custoPorAveAlojada) }}</strong>
-        </div>
-        <div class="indicador" [title]="motivo(f.custoPorKg)">
-          <span class="rotulo">Custo por kg</span
-          ><strong>{{ brlInd(f.custoPorKg) }}</strong>
-        </div>
-        <div class="indicador" [title]="motivo(f.receitaPrevista)">
-          <span class="rotulo">Receita prevista</span
-          ><strong>{{ brlInd(f.receitaPrevista) }}</strong>
-        </div>
-        <div class="indicador" [title]="motivo(f.margem)">
-          <span class="rotulo">Margem prevista</span>
-          <strong>{{ brlInd(f.margem) }}</strong>
-          @if (f.margemPercentual.disponivel) {
-            <span class="suave"
-              >{{ num(f.margemPercentual.valor, 1) }}% da receita</span
-            >
+      <section class="indicadores" aria-label="Indicadores financeiros">
+        <crista-cartao-indicador
+          class="compacto"
+          nome="Custo total"
+          [valor]="f.custoTotal"
+          [formato]="brl"
+        >
+          pintos {{ brl(f.custoPintos) }}
+        </crista-cartao-indicador>
+        <crista-cartao-indicador
+          class="compacto"
+          nome="Custo por ave alojada"
+          [valor]="f.custoPorAveAlojada"
+          [formato]="brl"
+        />
+        <crista-cartao-indicador
+          class="compacto"
+          nome="Custo por kg"
+          [valor]="f.custoPorKg"
+          [formato]="brl"
+        />
+        <crista-cartao-indicador
+          class="compacto"
+          nome="Receita prevista"
+          [valor]="f.receitaPrevista"
+          [formato]="brl"
+        >
+          @if (f.precoReferenciaKg !== null) {
+            a {{ brl(f.precoReferenciaKg) }}/kg
           }
-        </div>
+        </crista-cartao-indicador>
+        <crista-cartao-indicador
+          class="compacto"
+          nome="Margem prevista"
+          [valor]="f.margem"
+          [formato]="brl"
+          [tom]="f.margem.disponivel && f.margem.valor < 0 ? 'critico' : null"
+        >
+          @if (f.margemPercentual.disponivel) {
+            {{ num(f.margemPercentual.valor, 1) }} % da receita
+          }
+        </crista-cartao-indicador>
+      </section>
+
+      <div class="duas-colunas">
+        <section class="cartao">
+          <h3>Custo por categoria</h3>
+          <div class="rolagem">
+            <table class="tabela">
+              <thead>
+                <tr>
+                  <th>Categoria</th>
+                  <th class="num">Valor</th>
+                  <th class="col-barra">Participação</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (c of f.porCategoria; track c.categoria) {
+                  <tr>
+                    <td>{{ nomes[c.categoria] ?? c.categoria }}</td>
+                    <td class="num">{{ brl(c.valor) }}</td>
+                    <td class="col-barra">
+                      <div class="barra-linha">
+                        <span
+                          class="barra"
+                          [style.width.%]="c.percentual"
+                        ></span>
+                        <span class="pct num"
+                          >{{ num(c.percentual, 1) }} %</span
+                        >
+                      </div>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="3" class="suave">Nenhum custo lançado.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="cartao">
+          <h3>Preço de venda de referência</h3>
+          @if (podeEditar()) {
+            <form class="formulario" (ngSubmit)="salvarPreco()">
+              <label>
+                Preço por kg vivo
+                <span class="campo-unidade prefixo">
+                  <input
+                    type="number"
+                    name="preco"
+                    min="0"
+                    step="0.01"
+                    [(ngModel)]="preco"
+                  />
+                  <span>R$</span>
+                </span>
+              </label>
+              <span class="ajuda"
+                >A receita prevista é o peso vivo estimado do lote hoje
+                multiplicado por este preço.</span
+              >
+              <div>
+                <button type="submit" [disabled]="enviando()">
+                  {{ enviando() ? 'Salvando…' : 'Salvar preço' }}
+                </button>
+              </div>
+            </form>
+          } @else {
+            <p class="num">
+              {{
+                f.precoReferenciaKg === null
+                  ? 'Não informado'
+                  : brl(f.precoReferenciaKg) + ' por kg'
+              }}
+            </p>
+          }
+        </section>
       </div>
-
-      <section class="cartao">
-        <h3>Preço de venda de referência</h3>
-        @if (podeEditar()) {
-          <form class="linha-preco" (ngSubmit)="salvarPreco()">
-            <label>
-              R$ por kg vivo
-              <input
-                type="number"
-                name="preco"
-                min="0"
-                step="0.01"
-                [(ngModel)]="preco"
-              />
-            </label>
-            <button type="submit" [disabled]="enviando()">Salvar</button>
-          </form>
-          <p class="suave">
-            A receita prevista é o peso vivo estimado do lote hoje multiplicado
-            por este preço.
-          </p>
-        } @else {
-          <p>
-            {{
-              f.precoReferenciaKg === null
-                ? 'Não informado'
-                : brl(f.precoReferenciaKg) + ' por kg'
-            }}
-          </p>
-        }
-      </section>
-
-      <section class="cartao">
-        <h3>Custo por categoria</h3>
-        <div class="rolagem">
-          <table class="tabela">
-            <thead>
-              <tr>
-                <th>Categoria</th>
-                <th>Valor</th>
-                <th class="col-barra">Participação</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (c of f.porCategoria; track c.categoria) {
-                <tr>
-                  <td>{{ nomes[c.categoria] ?? c.categoria }}</td>
-                  <td>{{ brl(c.valor) }}</td>
-                  <td class="col-barra">
-                    <div class="barra-linha">
-                      <span class="barra" [style.width.%]="c.percentual"></span>
-                      <span class="pct">{{ num(c.percentual, 1) }}%</span>
-                    </div>
-                  </td>
-                </tr>
-              } @empty {
-                <tr>
-                  <td colspan="3" class="suave">Nenhum custo lançado.</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-      </section>
 
       <section class="cartao">
         <div class="cabecalho-secao">
           <h3>Despesas deste lote</h3>
           @if (fazenda.pode('despesa.registrar')) {
-            <a class="botao secundario" [routerLink]="fazenda.link('despesas')"
+            <a
+              class="botao secundario pequeno"
+              [routerLink]="fazenda.link('despesas')"
               >Lançar despesa</a
             >
           }
@@ -150,24 +179,24 @@ const NOMES: Partial<Record<string, string>> = {
           <table class="tabela">
             <thead>
               <tr>
-                <th>Data</th>
+                <th class="num">Data</th>
                 <th>Categoria</th>
                 <th>Descrição</th>
                 <th>Nota</th>
-                <th>Parcela do lote</th>
+                <th class="num">Parcela do lote</th>
               </tr>
             </thead>
             <tbody>
               @for (d of parcelas(); track d.idDespesa) {
                 <tr>
-                  <td>{{ data(d.data) }}</td>
+                  <td class="num">{{ data(d.data) }}</td>
                   <td>{{ nomes[d.categoria] ?? d.categoria }}</td>
                   <td>{{ d.descricao }}</td>
                   <td>{{ d.numeroNota ?? '—' }}</td>
-                  <td>
+                  <td class="num">
                     {{ brl(d.valor) }}
                     @if (d.percentual < 100) {
-                      <span class="suave">({{ num(d.percentual, 1) }}%)</span>
+                      <span class="suave">({{ num(d.percentual, 1) }} %)</span>
                     }
                   </td>
                 </tr>
@@ -185,43 +214,20 @@ const NOMES: Partial<Record<string, string>> = {
     }
   `,
   styles: `
-    .indicadores {
+    .duas-colunas {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-      gap: 0.6rem;
-      margin-bottom: 1rem;
-    }
-    .indicador {
-      background: var(--superficie);
-      border: 1px solid var(--borda);
-      border-radius: var(--raio);
-      padding: 0.6rem 0.75rem;
-      display: grid;
-    }
-    .indicador strong {
-      font-size: 1.1rem;
-    }
-    .rotulo {
-      font-size: 0.8rem;
-      color: var(--texto-suave);
-    }
-    .linha-preco {
-      display: flex;
-      gap: 0.75rem;
-      align-items: end;
-      flex-wrap: wrap;
-    }
-    .linha-preco input {
-      width: 10rem;
+      grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+      gap: var(--espaco-4);
+      align-items: start;
     }
     .col-barra {
-      width: 45%;
+      width: 40%;
       min-width: 160px;
     }
     .barra-linha {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: var(--espaco-2);
     }
     .barra {
       display: inline-block;
@@ -231,8 +237,13 @@ const NOMES: Partial<Record<string, string>> = {
       border-radius: 0 4px 4px 0;
     }
     .pct {
-      font-size: 0.85rem;
+      font-size: 13px;
       color: var(--texto-suave);
+    }
+    @media (max-width: 900px) {
+      .duas-colunas {
+        grid-template-columns: 1fr;
+      }
     }
   `,
 })
@@ -244,7 +255,7 @@ export class AbaCustos implements OnInit {
   protected readonly nomes = NOMES;
   protected readonly data = formatarData;
   protected readonly num = formatarNumero;
-  protected readonly brl = (v: number) => reais.format(v);
+  protected readonly brl = formatarReais;
   protected readonly fin = signal<FinanceiroLote | null>(null);
   protected readonly parcelas = signal<ParcelaLote[]>([]);
   protected readonly erro = signal('');
@@ -256,14 +267,6 @@ export class AbaCustos implements OnInit {
 
   ngOnInit(): Promise<void> {
     return this.carregar();
-  }
-
-  protected brlInd(i: Indicador): string {
-    return i.disponivel ? reais.format(i.valor) : '—';
-  }
-
-  protected motivo(i: Indicador): string {
-    return i.disponivel ? '' : i.motivo;
   }
 
   async salvarPreco(): Promise<void> {

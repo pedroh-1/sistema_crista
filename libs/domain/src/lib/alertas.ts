@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { Perfil } from './permissoes';
 import { dataISO, texto, textoOpcional } from './schemas';
+import { idadeDias } from './zootecnicos';
 
 // ---------- Alertas de desvio (UC16) ----------
 
@@ -121,6 +122,62 @@ export function limitesEfetivos(
   if (indicador === 'mortalidade_dia' && idadeDias <= 7)
     return { atencao: padrao.atencao * 2, critico: padrao.critico * 2 };
   return padrao;
+}
+
+export interface PontoMortalidadeDia {
+  data: string;
+  idadeDias: number;
+  /** Mortes + descartes do dia. */
+  baixas: number;
+  percentual: number;
+  /** Limites que valiam naquela idade (o padrão dobra na primeira semana). */
+  limites: Limites;
+  nivel: NivelLimite;
+}
+
+/**
+ * Mortalidade de cada dia com baixa lançada, sobre o saldo do início do dia
+ * (alojadas − baixas e cargas dos dias anteriores), como no resumo do lote.
+ * Dias sem lançamento não entram, porque não dá para saber se foram zero.
+ */
+export function serieMortalidadeDia(
+  lote: {
+    dataAlojamento: string;
+    idadeInicialDias: number;
+    avesAlojadas: number;
+    baixas: readonly { data: string; mortes: number; descartes: number }[];
+    cargas?: readonly { data: string; aves: number }[];
+  },
+  configurado: Limites | null,
+): PontoMortalidadeDia[] {
+  const porDia = new Map<string, number>();
+  for (const b of lote.baixas)
+    porDia.set(b.data, (porDia.get(b.data) ?? 0) + b.mortes + b.descartes);
+
+  const pontos: PontoMortalidadeDia[] = [];
+  let baixasAntes = 0;
+  for (const [data, baixas] of [...porDia].sort(([a], [b]) =>
+    a.localeCompare(b),
+  )) {
+    const saidasAntes = (lote.cargas ?? [])
+      .filter((c) => c.data < data)
+      .reduce((s, c) => s + c.aves, 0);
+    const saldoInicioDia = lote.avesAlojadas - baixasAntes - saidasAntes;
+    baixasAntes += baixas;
+    if (saldoInicioDia <= 0) continue;
+    const idade = idadeDias(lote.dataAlojamento, data, lote.idadeInicialDias);
+    const percentual = (baixas / saldoInicioDia) * 100;
+    const limites = limitesEfetivos('mortalidade_dia', configurado, idade);
+    pontos.push({
+      data,
+      idadeDias: idade,
+      baixas,
+      percentual,
+      limites,
+      nivel: avaliarLimite(percentual, limites, 'acima'),
+    });
+  }
+  return pontos;
 }
 
 export const regraAlertaSchema = z

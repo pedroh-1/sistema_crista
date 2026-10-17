@@ -237,6 +237,22 @@ describe('Fase 5: alertas e encerramento', () => {
         .expect(200);
     });
 
+    it('a mortalidade por dia traz os limites que valiam em cada idade', async () => {
+      const r = await api()
+        .get(lote(loteA, '/mortalidade'))
+        .auth(operador, { type: 'bearer' })
+        .expect(200);
+      expect(r.body.limitesConfigurados).toBeNull();
+      expect(r.body.pontos.at(-1)).toMatchObject({
+        data: hoje,
+        idadeDias: 20,
+        baixas: 78,
+        limites: { atencao: 0.3, critico: 0.5 },
+        nivel: 'critico',
+      });
+      expect(r.body.pontos.at(-1).percentual).toBeCloseTo(0.78);
+    });
+
     it('pesagem muito abaixo da curva abre alerta de peso', async () => {
       // Curva de teste cobb500 aos 20 dias ≈ 837 g; 600 g fica ~28% abaixo
       await api()

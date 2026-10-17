@@ -7,6 +7,7 @@ import { firstValueFrom } from 'rxjs';
 import { Alerta, ROTULO_CRITICIDADE } from '../nucleo/alertas';
 import { mensagemErro, validar } from '../nucleo/erros';
 import { formatarData, formatarNumero } from '../nucleo/formato';
+import { PrimeiroCampo } from '../nucleo/primeiro-campo';
 import { FazendaAtual } from './fazenda-atual';
 
 interface Regra {
@@ -21,85 +22,91 @@ interface Regra {
 /** UC16: alertas de desvio da fazenda e configuração dos limites. */
 @Component({
   selector: 'crista-alertas',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, PrimeiroCampo],
   template: `
+    <h1>Alertas</h1>
     @if (erro()) {
       <p class="aviso" role="alert">{{ erro() }}</p>
     }
     <section class="cartao">
-      <h2>Alertas abertos</h2>
-      @for (a of atual.alertasAbertos(); track a.id) {
-        <article class="item" [class.critico]="a.criticidade === 'critico'">
-          <div class="cabecalho-secao">
-            <strong class="criticidade" [class]="a.criticidade">{{
+      <div class="cabecalho-secao">
+        <h3>Abertos</h3>
+        <span class="suave"
+          >Alertas críticos vão por e-mail ao Gestor e ao Veterinário.</span
+        >
+      </div>
+      <div class="lista">
+        @for (a of atual.alertasAbertos(); track a.id) {
+          <article class="item">
+            <span class="etiqueta" [class]="a.criticidade">{{
               rotulo[a.criticidade]
-            }}</strong>
-            <span class="suave">
-              @if (a.loteId) {
-                <a [routerLink]="atual.link('lotes', a.loteId)"
-                  >Lote {{ a.lote }}</a
-                >
-                ·
-              }
-              @if (a.equipamentoId) {
-                <a [routerLink]="atual.link('equipamentos', a.equipamentoId)"
-                  >Ver equipamento</a
-                >
-                ·
-              }
-              {{ data(a.dataReferencia) }}
-            </span>
-          </div>
-          <p>{{ a.mensagem }}.</p>
-          @if (atual.pode('alerta.fechar')) {
+            }}</span>
+            <div class="texto">
+              <p>{{ a.mensagem }}.</p>
+              <p class="suave">
+                @if (a.loteId) {
+                  <a [routerLink]="atual.link('lotes', a.loteId)"
+                    >Lote {{ a.lote }}</a
+                  >
+                  ·
+                }
+                @if (a.equipamentoId) {
+                  <a [routerLink]="atual.link('equipamentos', a.equipamentoId)"
+                    >Ver equipamento</a
+                  >
+                  ·
+                }
+                <span class="num">{{ data(a.dataReferencia) }}</span>
+              </p>
+            </div>
+            @if (atual.pode('alerta.fechar') && fechando() !== a.id) {
+              <button
+                type="button"
+                class="secundario pequeno"
+                (click)="abrirFechamento(a.id)"
+              >
+                Fechar alerta
+              </button>
+            }
             @if (fechando() === a.id) {
-              <form class="formulario" (ngSubmit)="fechar(a)">
+              <form class="fechamento" (ngSubmit)="fechar(a)">
                 <label>
                   Providência adotada
                   <input
+                    cristaPrimeiroCampo
                     name="providencia"
                     [(ngModel)]="providencia"
                     placeholder="Ex.: ajustada a ventilação; necropsia enviada ao laboratório"
                   />
+                  @if (erroProvidencia()) {
+                    <span class="erro-campo">{{ erroProvidencia() }}</span>
+                  }
                 </label>
-                @if (erroProvidencia()) {
-                  <span class="erro-campo">{{ erroProvidencia() }}</span>
-                }
-                <div>
+                <div class="acoes">
                   <button type="submit">Fechar alerta</button>
-                  &nbsp;
                   <button
                     type="button"
-                    class="secundario"
+                    class="fantasma"
                     (click)="fechando.set(null)"
                   >
                     Cancelar
                   </button>
                 </div>
               </form>
-            } @else {
-              <button
-                type="button"
-                class="secundario"
-                (click)="abrirFechamento(a.id)"
-              >
-                Registrar providência e fechar
-              </button>
             }
-          }
-        </article>
-      } @empty {
-        <p class="suave">Nenhum alerta aberto.</p>
-      }
+          </article>
+        } @empty {
+          <p class="vazio suave">✓ Nenhum alerta aberto.</p>
+        }
+      </div>
     </section>
 
     <section class="cartao">
-      <h2>Limites dos alertas</h2>
+      <h3>Limites dos alertas</h3>
       <p class="suave">
         Sem configuração, valem os limites padrão. Eles são provisórios até a
         validação com o veterinário (doc 06), e a mortalidade do dia usa o dobro
-        na primeira semana. Alertas críticos são enviados por e-mail ao Gestor e
-        ao Veterinário.
+        na primeira semana.
       </p>
       <div class="rolagem">
         <table class="tabela">
@@ -107,9 +114,9 @@ interface Regra {
             <tr>
               <th>Indicador</th>
               <th>Alerta quando</th>
-              <th>Atenção</th>
-              <th>Crítico</th>
-              <th></th>
+              <th class="num">Atenção</th>
+              <th class="num">Crítico</th>
+              <th class="acao"><span class="visivel-leitor">Ações</span></th>
             </tr>
           </thead>
           <tbody>
@@ -118,66 +125,78 @@ interface Regra {
                 <td>
                   {{ r.nome }}
                   @if (!r.configurado) {
-                    <br /><span class="etiqueta">padrão</span>
+                    <span class="etiqueta">Padrão</span>
                   }
                 </td>
                 <td>
                   {{ r.direcao === 'acima' ? 'passa de' : 'fica abaixo de' }}
                 </td>
                 @if (editando() === r.indicador) {
-                  <td>
-                    <input
-                      type="number"
-                      step="0.01"
-                      [(ngModel)]="limites.atencao"
-                      aria-label="Limite de atenção"
-                    />{{ r.unidade }}
+                  <td class="num">
+                    <span class="campo-unidade limite">
+                      <input
+                        type="number"
+                        step="0.01"
+                        [(ngModel)]="limites.atencao"
+                        aria-label="Limite de atenção"
+                      />
+                      <span>{{ r.unidade }}</span>
+                    </span>
                   </td>
-                  <td>
-                    <input
-                      type="number"
-                      step="0.01"
-                      [(ngModel)]="limites.critico"
-                      aria-label="Limite crítico"
-                    />{{ r.unidade }}
+                  <td class="num">
+                    <span class="campo-unidade limite">
+                      <input
+                        type="number"
+                        step="0.01"
+                        [(ngModel)]="limites.critico"
+                        aria-label="Limite crítico"
+                      />
+                      <span>{{ r.unidade }}</span>
+                    </span>
                   </td>
-                  <td>
-                    <button type="button" (click)="salvar(r)">Salvar</button>
-                    <button
-                      type="button"
-                      class="secundario"
-                      (click)="editando.set(null)"
-                    >
-                      Cancelar
-                    </button>
-                  </td>
-                } @else {
-                  <td>
-                    {{ num((r.configurado ?? r.padrao).atencao)
-                    }}{{ r.unidade }}
-                  </td>
-                  <td>
-                    {{ num((r.configurado ?? r.padrao).critico)
-                    }}{{ r.unidade }}
-                  </td>
-                  <td>
-                    @if (atual.pode('alerta.configurar')) {
+                  <td class="acao">
+                    <div class="acoes">
+                      <button type="button" class="pequeno" (click)="salvar(r)">
+                        Salvar
+                      </button>
                       <button
                         type="button"
-                        class="secundario"
-                        (click)="editar(r)"
+                        class="fantasma pequeno"
+                        (click)="editando.set(null)"
                       >
-                        Alterar
+                        Cancelar
                       </button>
-                      @if (r.configurado) {
+                    </div>
+                  </td>
+                } @else {
+                  <td class="num">
+                    {{ num((r.configurado ?? r.padrao).atencao) }}
+                    {{ r.unidade }}
+                  </td>
+                  <td class="num">
+                    {{ num((r.configurado ?? r.padrao).critico) }}
+                    {{ r.unidade }}
+                  </td>
+                  <td class="acao">
+                    @if (atual.pode('alerta.configurar')) {
+                      <div class="acoes">
+                        @if (r.configurado) {
+                          <button
+                            type="button"
+                            class="fantasma pequeno"
+                            (click)="restaurar(r)"
+                          >
+                            Usar padrão
+                          </button>
+                        }
                         <button
                           type="button"
-                          class="secundario"
-                          (click)="restaurar(r)"
+                          class="fantasma pequeno"
+                          (click)="editar(r)"
                         >
-                          Usar padrão
+                          Alterar
                         </button>
-                      }
+                      </div>
                     }
                   </td>
                 }
@@ -187,17 +206,17 @@ interface Regra {
         </table>
       </div>
       @if (erroRegra()) {
-        <span class="erro-campo">{{ erroRegra() }}</span>
+        <p class="aviso" role="alert">{{ erroRegra() }}</p>
       }
     </section>
 
     <section class="cartao">
-      <h2>Alertas fechados</h2>
+      <h3>Fechados</h3>
       <div class="rolagem">
         <table class="tabela">
           <thead>
             <tr>
-              <th>Data</th>
+              <th class="num">Data</th>
               <th>Alerta</th>
               <th>Providência</th>
               <th>Fechado por</th>
@@ -206,8 +225,13 @@ interface Regra {
           <tbody>
             @for (a of fechados(); track a.id) {
               <tr>
-                <td>{{ data(a.dataReferencia) }}</td>
-                <td>{{ rotulo[a.criticidade] }} · {{ a.mensagem }}</td>
+                <td class="num">{{ data(a.dataReferencia) }}</td>
+                <td>
+                  <span class="etiqueta" [class]="a.criticidade">{{
+                    rotulo[a.criticidade]
+                  }}</span>
+                  {{ a.mensagem }}
+                </td>
                 <td>{{ a.providencia }}</td>
                 <td>{{ a.fechadoPor ?? '—' }}</td>
               </tr>
@@ -222,30 +246,60 @@ interface Regra {
     </section>
   `,
   styles: `
+    .lista {
+      margin: 0 calc(-1 * var(--espaco-5)) calc(-1 * var(--espaco-5));
+      border-top: 1px solid var(--borda);
+    }
     .item {
-      border-left: 4px solid #eda100;
-      padding: 0.5rem 0.75rem;
-      margin-bottom: 0.75rem;
-      background: var(--fundo);
-      border-radius: 4px;
+      display: grid;
+      grid-template-columns: 110px minmax(0, 1fr) auto;
+      gap: var(--espaco-2) var(--espaco-4);
+      align-items: start;
+      padding: var(--espaco-4) var(--espaco-5);
+      border-bottom: 1px solid var(--borda);
     }
-    .item.critico {
-      border-left-color: var(--perigo);
+    .item:last-child {
+      border-bottom: 0;
     }
-    .item p {
-      margin: 0.25rem 0 0.5rem;
+    .item .etiqueta {
+      justify-self: start;
     }
-    .criticidade.atencao {
-      color: #6b4b00;
+    .texto p {
+      margin: 0;
     }
-    .criticidade.critico {
-      color: var(--perigo);
+    .fechamento {
+      grid-column: 2 / -1;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: var(--espaco-3);
+      align-items: start;
     }
-    td input {
-      width: 5.5rem;
+    .fechamento .acoes {
+      padding-top: 22px;
     }
-    td button {
-      margin: 0.15rem;
+    .vazio {
+      margin: 0;
+      padding: var(--espaco-4) var(--espaco-5);
+    }
+    .limite {
+      display: inline-block;
+      width: 120px;
+    }
+    .acao .acoes {
+      justify-content: flex-end;
+      flex-wrap: nowrap;
+    }
+    @media (max-width: 640px) {
+      .item,
+      .fechamento {
+        grid-template-columns: 1fr;
+      }
+      .fechamento {
+        grid-column: auto;
+      }
+      .lista {
+        margin: 0 calc(-1 * var(--espaco-4)) calc(-1 * var(--espaco-4));
+      }
     }
   `,
 })

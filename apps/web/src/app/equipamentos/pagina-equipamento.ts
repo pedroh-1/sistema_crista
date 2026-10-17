@@ -15,7 +15,13 @@ import { firstValueFrom } from 'rxjs';
 import { Dialogos } from '../nucleo/dialogos';
 import { FazendaAtual } from '../fazendas/fazenda-atual';
 import { ErrosCampo, mensagemErro, validar } from '../nucleo/erros';
-import { formatarData, formatarNumero, hoje } from '../nucleo/formato';
+import {
+  formatarData,
+  formatarNumero,
+  formatarReais,
+  hoje,
+} from '../nucleo/formato';
+import { PrimeiroCampo } from '../nucleo/primeiro-campo';
 import { FormEquipamento } from './form-equipamento';
 import {
   agoraLocal,
@@ -23,13 +29,9 @@ import {
   dataHoraParaISO,
   Equipamento,
   formatarDataHora,
+  ICONE_PREVENTIVA,
   Manutencao,
 } from './tipos';
-
-const reais = new Intl.NumberFormat('pt-BR', {
-  style: 'currency',
-  currency: 'BRL',
-});
 
 const vazio = () => ({
   tipo: 'corretiva' as TipoManutencao,
@@ -47,103 +49,111 @@ const vazio = () => ({
 /** UC18 e UC19: ficha do equipamento e histórico de manutenções. */
 @Component({
   selector: 'crista-pagina-equipamento',
-  imports: [FormsModule, RouterLink, FormEquipamento],
+  imports: [FormsModule, RouterLink, FormEquipamento, PrimeiroCampo],
   template: `
-    <p><a [routerLink]="atual.link('equipamentos')">← Equipamentos</a></p>
+    <nav class="trilha" aria-label="Caminho">
+      <a [routerLink]="atual.link('equipamentos')">Equipamentos</a>
+      @if (equipamento(); as e) {
+        <span aria-hidden="true">/</span><span>{{ e.nome }}</span>
+      }
+    </nav>
     @if (erro()) {
       <p class="aviso" role="alert">{{ erro() }}</p>
     }
     @if (equipamento(); as e) {
-      <section class="cartao">
-        <div class="cabecalho-secao">
-          <h2>{{ e.nome }}</h2>
-          @if (atual.pode('equipamento.cadastrar') && !editando()) {
-            <button
-              type="button"
-              class="secundario"
-              (click)="editando.set(true)"
+      <header class="cabecalho-secao">
+        <div>
+          <h1>{{ e.nome }}</h1>
+          <div class="acoes">
+            @if (e.situacao === 'inativo') {
+              <span class="etiqueta">Inativo</span>
+            } @else if (e.paradoDesde) {
+              <span class="etiqueta critico">‼ Parado</span>
+            } @else {
+              <span class="etiqueta sucesso">✓ Em operação</span>
+            }
+            <span
+              class="etiqueta"
+              [class]="classePreventiva[e.situacaoPreventiva]"
+              >{{ iconePreventiva[e.situacaoPreventiva] }} Preventiva:
+              {{ nomePreventiva[e.situacaoPreventiva] }}</span
             >
-              Editar cadastro
-            </button>
-          }
+            <span class="suave"
+              >{{ nomeTipo[e.tipo] }} ·
+              {{ e.galpao ? e.galpao : 'Fazenda inteira' }}
+              {{ e.critico ? '· crítico' : '' }}</span
+            >
+          </div>
         </div>
-        @if (editando()) {
+        @if (atual.pode('equipamento.cadastrar') && !editando()) {
+          <button type="button" class="secundario" (click)="editando.set(true)">
+            Editar cadastro
+          </button>
+        }
+      </header>
+
+      @if (e.paradoDesde) {
+        <p class="aviso" role="status">
+          ‼ Parado desde {{ dataHora(e.paradoDesde) }}.
+          @if (e.critico) {
+            Equipamento crítico: há um alerta aberto até o retorno.
+          }
+        </p>
+      }
+
+      @if (editando()) {
+        <section class="cartao">
+          <h3>Editar cadastro</h3>
           <crista-form-equipamento
             [equipamento]="e"
             (salvo)="aoEditar($event)"
             (cancelado)="editando.set(false)"
           />
-        } @else {
-          @if (e.paradoDesde) {
-            <p class="aviso" role="status">
-              ⛔ Parado desde {{ dataHora(e.paradoDesde) }}.
-              @if (e.critico) {
-                Equipamento crítico: há um alerta aberto até o retorno.
-              }
-            </p>
-          }
-          <dl class="ficha">
-            <div>
-              <dt>Tipo</dt>
-              <dd>{{ nomeTipo[e.tipo] }}</dd>
-            </div>
-            <div>
-              <dt>Local</dt>
-              <dd>{{ e.galpao ? 'Galpão ' + e.galpao : 'Fazenda inteira' }}</dd>
-            </div>
-            <div>
-              <dt>Situação</dt>
-              <dd>
-                {{ e.situacao === 'inativo' ? 'Inativo' : 'Ativo' }}
-                {{ e.critico ? '· crítico' : '' }}
-              </dd>
-            </div>
-            <div>
-              <dt>Número de série</dt>
-              <dd>{{ e.numeroSerie ?? '—' }}</dd>
-            </div>
-            <div>
-              <dt>Fabricante / modelo</dt>
-              <dd>
-                {{ e.fabricante ?? '—' }}{{ e.modelo ? ' · ' + e.modelo : '' }}
-              </dd>
-            </div>
-            <div>
-              <dt>Aquisição</dt>
-              <dd>{{ data(e.dataAquisicao) }}</dd>
-            </div>
-            <div>
-              <dt>Preventiva</dt>
-              <dd>
-                <span
-                  class="etiqueta"
-                  [class]="classePreventiva[e.situacaoPreventiva]"
-                  >{{ nomePreventiva[e.situacaoPreventiva] }}</span
+        </section>
+      } @else {
+        <dl class="ficha cartao">
+          <div>
+            <dt>Próxima preventiva</dt>
+            <dd class="num">
+              {{ data(e.proximaPreventiva) }}
+              @if (e.periodicidadeDias) {
+                <span class="suave">
+                  (a cada {{ e.periodicidadeDias }} dias)</span
                 >
-                @if (e.proximaPreventiva) {
-                  {{ data(e.proximaPreventiva) }}
-                }
-                @if (e.periodicidadeDias) {
-                  <span class="suave">
-                    (a cada {{ e.periodicidadeDias }} dias)</span
-                  >
-                }
-              </dd>
+              }
+            </dd>
+          </div>
+          <div>
+            <dt>Última manutenção</dt>
+            <dd class="num">{{ data(e.ultimaManutencao) }}</dd>
+          </div>
+          @if (e.custoTotal !== null) {
+            <div>
+              <dt>Custo de manutenção</dt>
+              <dd class="num">{{ brl(e.custoTotal) }}</dd>
             </div>
-            @if (e.custoTotal !== null) {
-              <div>
-                <dt>Custo de manutenção</dt>
-                <dd>{{ brl(e.custoTotal) }}</dd>
-              </div>
-            }
-          </dl>
-        }
-      </section>
+          }
+          <div>
+            <dt>Fabricante / modelo</dt>
+            <dd>
+              {{ e.fabricante ?? '—' }}{{ e.modelo ? ' · ' + e.modelo : '' }}
+            </dd>
+          </div>
+          <div>
+            <dt>Número de série</dt>
+            <dd>{{ e.numeroSerie ?? '—' }}</dd>
+          </div>
+          <div>
+            <dt>Aquisição</dt>
+            <dd class="num">{{ data(e.dataAquisicao) }}</dd>
+          </div>
+        </dl>
+      }
 
       @if (atual.pode('manutencao.registrar') && e.situacao === 'ativo') {
         <form class="cartao formulario" (ngSubmit)="registrar()">
-          <h2>Registrar manutenção</h2>
-          <div class="grade-2">
+          <h3>Registrar manutenção</h3>
+          <div class="linha-campos servico">
             <label>
               Tipo
               <select name="tipo" [(ngModel)]="dados.tipo">
@@ -167,6 +177,7 @@ const vazio = () => ({
             <label>
               O que foi feito
               <input
+                cristaPrimeiroCampo
                 name="descricao"
                 placeholder="Ex.: troca da correia do exaustor"
                 [(ngModel)]="dados.descricao"
@@ -175,56 +186,56 @@ const vazio = () => ({
                 <span class="erro-campo">{{ erros()['descricao'] }}</span>
               }
             </label>
+          </div>
+          <div class="linha-campos custos">
             <label>
-              Ordem de serviço (opcional)
-              <input name="os" [(ngModel)]="dados.ordemServico" />
-            </label>
-            <label>
-              Custo das peças (R$)
-              <input
-                type="number"
-                name="pecas"
-                min="0"
-                step="0.01"
-                [(ngModel)]="dados.custoPecas"
-              />
+              Custo das peças
+              <span class="campo-unidade prefixo">
+                <input
+                  type="number"
+                  name="pecas"
+                  min="0"
+                  step="0.01"
+                  [(ngModel)]="dados.custoPecas"
+                />
+                <span>R$</span>
+              </span>
               @if (erros()['custoPecas']) {
                 <span class="erro-campo">{{ erros()['custoPecas'] }}</span>
               }
             </label>
             <label>
-              Custo da mão de obra (R$)
-              <input
-                type="number"
-                name="maoObra"
-                min="0"
-                step="0.01"
-                [(ngModel)]="dados.custoMaoObra"
-              />
+              Custo da mão de obra
+              <span class="campo-unidade prefixo">
+                <input
+                  type="number"
+                  name="maoObra"
+                  min="0"
+                  step="0.01"
+                  [(ngModel)]="dados.custoMaoObra"
+                />
+                <span>R$</span>
+              </span>
               @if (erros()['custoMaoObra']) {
                 <span class="erro-campo">{{ erros()['custoMaoObra'] }}</span>
               }
             </label>
-            <label>
-              Fornecedor ou técnico (opcional)
-              <input name="fornecedor" [(ngModel)]="dados.fornecedor" />
-            </label>
           </div>
-          <p class="suave">
+          <span class="ajuda">
             Com custo, a manutenção gera a despesa:
             {{
               e.galpao
-                ? 'vai para o lote em andamento do galpão ' + e.galpao
+                ? 'vai para o lote em andamento de ' + e.galpao
                 : 'é rateada entre os lotes em andamento, pelas aves alojadas'
             }}; sem lote, fica como despesa da fazenda.
-          </p>
+          </span>
 
           <label class="caixa">
             <input type="checkbox" name="parou" [(ngModel)]="dados.parou" />
             O equipamento ficou parado
           </label>
           @if (dados.parou) {
-            <div class="grade-2">
+            <div class="linha-campos">
               <label>
                 Parou em
                 <input
@@ -251,96 +262,123 @@ const vazio = () => ({
               </label>
             </div>
           }
+          <details class="mais">
+            <summary>Ordem de serviço e fornecedor</summary>
+            <div class="linha-campos">
+              <label>
+                Ordem de serviço (opcional)
+                <input name="os" [(ngModel)]="dados.ordemServico" />
+              </label>
+              <label>
+                Fornecedor ou técnico (opcional)
+                <input name="fornecedor" [(ngModel)]="dados.fornecedor" />
+              </label>
+            </div>
+          </details>
           <div>
             <button type="submit" [disabled]="enviando()">
-              Registrar manutenção
+              {{ enviando() ? 'Registrando…' : 'Registrar manutenção' }}
             </button>
           </div>
         </form>
       }
 
       <section class="cartao">
-        <h2>Histórico de manutenções</h2>
+        <h3>Histórico de manutenções</h3>
         <div class="rolagem">
           <table class="tabela">
             <thead>
               <tr>
-                <th>Data</th>
+                <th class="num">Data</th>
                 <th>Tipo</th>
                 <th>Descrição</th>
                 <th>Parada</th>
                 @if (e.custoTotal !== null) {
-                  <th>Custo</th>
+                  <th class="num">Custo</th>
                 }
                 <th>Registrada por</th>
-                <th></th>
+                <th class="acao"><span class="visivel-leitor">Ações</span></th>
               </tr>
             </thead>
             <tbody>
               @for (m of manutencoes(); track m.id) {
-                <tr [class.estornado]="m.estorno">
-                  <td>{{ data(m.data) }}</td>
-                  <td>{{ nomeTipoManutencao[m.tipo] }}</td>
+                <tr [class.estornada]="m.estorno">
+                  <td class="num riscar">{{ data(m.data) }}</td>
+                  <td class="riscar">{{ nomeTipoManutencao[m.tipo] }}</td>
                   <td>
-                    {{ m.descricao }}
+                    <span class="riscar">{{ m.descricao }}</span>
                     @if (m.ordemServico) {
-                      <span class="suave">· OS {{ m.ordemServico }}</span>
+                      <span class="suave"> · OS {{ m.ordemServico }}</span>
+                    }
+                    @if (m.estorno) {
+                      <span class="motivo-estorno"
+                        >Estornada: {{ m.estorno.motivo }}</span
+                      >
                     }
                   </td>
-                  <td>
+                  <td class="riscar">
                     @if (m.paradaInicio) {
-                      {{ dataHora(m.paradaInicio) }} →
+                      <span class="num">{{ dataHora(m.paradaInicio) }}</span> →
                       @if (m.retornoOperacao) {
-                        {{ dataHora(m.retornoOperacao) }}
+                        <span class="num">{{
+                          dataHora(m.retornoOperacao)
+                        }}</span>
                       } @else {
-                        <strong>sem retorno</strong>
+                        <span class="etiqueta critico">‼ Sem retorno</span>
                       }
-                      <span class="suave">({{ num(m.horasParado) }} h)</span>
+                      <span class="suave num">
+                        ({{ num(m.horasParado) }} h)</span
+                      >
                     } @else {
                       <span class="suave">—</span>
                     }
                   </td>
                   @if (e.custoTotal !== null) {
-                    <td>{{ m.custoTotal ? brl(m.custoTotal) : '—' }}</td>
+                    <td class="num riscar">
+                      {{ m.custoTotal ? brl(m.custoTotal) : '—' }}
+                    </td>
                   }
                   <td>{{ m.registradoPor ?? '—' }}</td>
-                  <td class="acoes">
-                    @if (m.estorno) {
-                      <span class="etiqueta inativo" [title]="m.estorno.motivo"
-                        >Estornada</span
-                      >
-                    } @else if (atual.pode('manutencao.registrar')) {
-                      @if (m.paradaInicio && !m.retornoOperacao) {
-                        @if (retornando() === m.id) {
-                          <form (ngSubmit)="registrarRetorno(m)">
-                            <input
-                              type="datetime-local"
-                              name="retorno"
-                              aria-label="Voltou a operar em"
-                              [(ngModel)]="retorno"
-                            />
-                            <button type="submit">Salvar</button>
+                  <td class="acao">
+                    @if (!m.estorno && atual.pode('manutencao.registrar')) {
+                      @if (retornando() === m.id) {
+                        <form class="acoes" (ngSubmit)="registrarRetorno(m)">
+                          <input
+                            cristaPrimeiroCampo
+                            type="datetime-local"
+                            name="retorno"
+                            aria-label="Voltou a operar em"
+                            [(ngModel)]="retorno"
+                          />
+                          <button type="submit" class="pequeno">Salvar</button>
+                          <button
+                            type="button"
+                            class="fantasma pequeno"
+                            (click)="retornando.set(null)"
+                          >
+                            Cancelar
+                          </button>
+                        </form>
+                      } @else {
+                        <div class="acoes">
+                          @if (m.paradaInicio && !m.retornoOperacao) {
                             <button
                               type="button"
-                              class="secundario"
-                              (click)="retornando.set(null)"
+                              class="secundario pequeno"
+                              (click)="abrirRetorno(m.id)"
                             >
-                              Cancelar
+                              Registrar retorno
                             </button>
-                          </form>
-                        } @else {
-                          <button type="button" (click)="abrirRetorno(m.id)">
-                            Registrar retorno
+                          }
+                          <button
+                            type="button"
+                            class="fantasma pequeno"
+                            (click)="estornar(m)"
+                          >
+                            Estornar
                           </button>
-                        }
+                        </div>
                       }
-                      <button
-                        type="button"
-                        class="secundario"
-                        (click)="estornar(m)"
-                      >
-                        Corrigir
-                      </button>
                     }
                   </td>
                 </tr>
@@ -358,32 +396,42 @@ const vazio = () => ({
     }
   `,
   styles: `
+    h1 {
+      margin-bottom: var(--espaco-2);
+    }
     .ficha {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 0.75rem 1.5rem;
-      margin: 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--espaco-3) var(--espaco-6);
+      padding: var(--espaco-4) var(--espaco-5);
     }
     .ficha dt {
-      font-size: 0.8rem;
+      font-size: 13px;
       color: var(--texto-suave);
     }
     .ficha dd {
-      margin: 0.1rem 0 0;
+      margin: 0;
+      font-weight: 600;
     }
-    .acoes {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.4rem;
+    .servico {
+      grid-template-columns: 200px 170px minmax(240px, 1fr);
     }
-    .acoes form {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.4rem;
+    .custos {
+      grid-template-columns: repeat(2, 220px);
     }
-    .estornado td:not(:last-child) {
-      text-decoration: line-through;
-      color: var(--texto-suave);
+    .acao .acoes {
+      justify-content: flex-end;
+      flex-wrap: nowrap;
+    }
+    .acao input {
+      min-height: 32px;
+      width: auto;
+    }
+    @media (max-width: 900px) {
+      .servico,
+      .custos {
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      }
     }
   `,
 })
@@ -398,12 +446,13 @@ export class PaginaEquipamento {
   protected readonly nomeTipo = NOME_TIPO_EQUIPAMENTO;
   protected readonly nomePreventiva = NOME_SITUACAO_PREVENTIVA;
   protected readonly classePreventiva = CLASSE_PREVENTIVA;
+  protected readonly iconePreventiva = ICONE_PREVENTIVA;
   protected readonly tiposManutencao = TIPOS_MANUTENCAO;
   protected readonly nomeTipoManutencao = NOME_TIPO_MANUTENCAO;
   protected readonly data = formatarData;
   protected readonly dataHora = formatarDataHora;
   protected readonly num = formatarNumero;
-  protected readonly brl = (v: number) => reais.format(v);
+  protected readonly brl = formatarReais;
 
   protected readonly equipamento = signal<Equipamento | null>(null);
   protected readonly manutencoes = signal<Manutencao[]>([]);

@@ -48,9 +48,17 @@ export interface Manutencao {
 /** Classe da etiqueta: a cor sempre acompanha o texto. */
 export const CLASSE_PREVENTIVA: Record<SituacaoPreventiva, string> = {
   sem_previsao: '',
-  em_dia: 'ativo',
-  vence_logo: 'ocupado',
-  vencida: 'inativo',
+  em_dia: 'sucesso',
+  vence_logo: 'atencao',
+  vencida: 'critico',
+};
+
+/** Glifo que vai junto do texto nos estados que pedem ação. */
+export const ICONE_PREVENTIVA: Record<SituacaoPreventiva, string> = {
+  sem_previsao: '',
+  em_dia: '',
+  vence_logo: '⚠',
+  vencida: '‼',
 };
 
 /** Data e hora (ISO) no formato brasileiro, no fuso das fazendas. */

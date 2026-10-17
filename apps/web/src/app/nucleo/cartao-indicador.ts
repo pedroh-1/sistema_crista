@@ -38,6 +38,8 @@ export class CartaoIndicador {
   readonly valor = input.required<Indicador | number | null>();
   readonly casas = input(0);
   readonly unidade = input('');
+  /** Formato próprio do valor (reais, por exemplo); sem ele, número com `casas`. */
+  readonly formato = input<((valor: number) => string) | null>(null);
   /** Destaque quando o indicador passou do limite; no máximo um ou dois por tela. */
   readonly tom = input<'critico' | 'atencao' | null>(null);
   /** Motivo quando `valor` é um número ausente (null). */
@@ -50,8 +52,9 @@ export class CartaoIndicador {
 
   protected readonly texto = computed(() => {
     const v = this.valor();
-    if (typeof v === 'number') return formatarNumero(v, this.casas());
-    return v?.disponivel ? formatarNumero(v.valor, this.casas()) : '—';
+    const n = typeof v === 'number' ? v : v?.disponivel ? v.valor : null;
+    if (n === null) return '—';
+    return this.formato()?.(n) ?? formatarNumero(n, this.casas());
   });
 
   protected readonly motivo = computed(() => {
