@@ -15,6 +15,16 @@ arquivos vizinhos.
   está na lista de conferência do doc 07 (curva oficial, limites validados, termos LGPD) e nas
   regras marcadas como **Proposta** em docs/01-mvp.md, que a equipe precisa confirmar.
 
+### Visão geral da fazenda e cores com regra (17/10/2026)
+
+- A entrada da fazenda é `fazendas/visao-geral.ts` (API `producao/visao-geral.service.ts`); o
+  relatório da fazenda (`relatorio-fazenda.service.ts`) chama a visão geral com o mesmo filtro.
+- Cor de estado só onde há regra: `tomDoNivel()` / `tomDaMeta()` em `@crista/domain`, selo
+  `nucleo/estado.ts`, ícones em `nucleo/icone.ts`. Indicador sem limite fica neutro.
+- Os níveis usam os limites configurados da fazenda (`DadosLote` carrega `regra_alerta` em
+  `entrada.limites`); não há mais limite fixo de mortalidade fora do padrão do domínio.
+- Regras novas como **Proposta** em docs/01-mvp.md; detalhes em docs/08-design.md (E7).
+
 ### Como a Fase 6 ficou (referência)
 
 - Módulo `apps/api/src/equipamentos` (schema `equipamentos`). A manutenção com custo gera a

@@ -58,6 +58,22 @@ Rateio de despesa entre lotes: por aves alojadas, por consumo (kg de ração) ou
 manual. A soma das parcelas é sempre igual ao valor da despesa. O centavo que sobrar no
 arredondamento vai para a maior parcela.
 
+## Indicadores da fazenda (visão geral e relatório da fazenda)
+
+Fórmulas em `libs/domain/src/lib/visao-geral.ts`, sobre os lotes do filtro, cada um cortado no
+fim do período (ou no encerramento). Regras em **Proposta** (docs/01-mvp.md).
+
+| Indicador                | Fórmula                                                         | Observação                                 |
+| ------------------------ | --------------------------------------------------------------- | ------------------------------------------ |
+| Aves alojadas            | soma das `aves_alojadas` dos lotes alojados                     | —                                          |
+| Plantel atual            | soma do saldo de aves dos lotes em andamento                    | —                                          |
+| Mortalidade (%)          | `soma das baixas ÷ soma das aves alojadas × 100`                | Ponderada; não é a média das porcentagens  |
+| Viabilidade (%)          | `100 − mortalidade da fazenda`                                  | —                                          |
+| Conversão alimentar      | `soma da ração consumida ÷ soma do peso vivo produzido`         | Só lotes com ração e pesagem               |
+| IEP médio                | média simples do IEP dos lotes que têm valor                    | —                                          |
+| Mortalidade diária (%)   | `soma das baixas do dia ÷ soma do saldo no início do dia × 100` | Só os lotes que lançaram baixa naquele dia |
+| Custo e margem dos lotes | soma do custo total e da margem prevista de cada lote           | Só para quem tem `financeiro.ver`          |
+
 ## Regras de integridade
 
 | Regra                                                                                            | Situação                       |

@@ -126,6 +126,35 @@ fica para quando houver ambiente de produção.
 - Limite de 10 tentativas por minuto, por IP, nas rotas públicas de conta (login, cadastro,
   confirmação de e-mail, convite); 300 por minuto nas demais.
 
+### Regras da visão geral da fazenda que a equipe precisa confirmar (**Proposta**)
+
+Entraram com o redesenho da interface (17/10/2026, docs/08-design.md).
+
+- **Cor só onde há regra.** Verde, âmbar e vermelho aparecem apenas nos indicadores com limite
+  ou meta: mortalidade do dia, peso × curva e uniformidade (limites dos alertas, configuráveis
+  em Alertas), meta de peso (faixa de ±5% da curva), alertas abertos e margem prevista
+  (negativa é prejuízo). Mortalidade acumulada, conversão alimentar e IEP ficam neutros até a
+  equipe definir referências para eles.
+- **Os limites configurados valem em todo lugar.** Antes, o nível da mortalidade de hoje (no
+  cabeçalho do lote, na página inicial e na resposta da baixa) usava os limites fixos de
+  0,3% e 0,5%, mesmo com outro limite configurado na fazenda. Agora usa o mesmo limite dos
+  alertas (UC16).
+- **Peso × curva:** passar do limite de `desvio_peso` dá atenção ou crítico. Sem passar dele,
+  ficar fora da faixa da meta (abaixo ou acima) dá atenção. Antes, "abaixo da meta" era sempre
+  crítico.
+- **Agregação da fazenda:** mortalidade e conversão alimentar ponderadas pelas aves e pelos
+  quilos de cada lote, não a média das porcentagens; IEP como média simples dos lotes que têm
+  valor. Lote encerrado entra como estava no encerramento; lote cancelado fica de fora.
+- **Período padrão** da visão geral e do relatório: últimos 90 dias. Entram os lotes cuja
+  vida cruza o período (alojados até o fim dele e ainda em andamento ou encerrados depois do
+  início).
+- **Mortalidade diária da fazenda:** soma das baixas sobre a soma do saldo no início do dia dos
+  lotes que lançaram baixa naquele dia; o nível do dia é o pior entre os lotes, cada um pelo
+  limite da sua idade.
+- **Pontos de atenção:** alertas abertos, mais o que já passou do limite e ainda não virou
+  alerta (a fila avalia depois do lançamento), dias do período acima do limite, carência
+  vigente, lotes encerrados com pendências e equipamentos parados.
+
 ## Fora do MVP
 
 Central de biosseguridade, compliance e rastreabilidade para exportação, benchmark de custo,

@@ -252,6 +252,39 @@ Já feito:
   `.prefixo` para R$); grupos de opções marcáveis em `label.opcao`; `formatarReais` no
   lugar dos formatadores repetidos.
 
+Segunda rodada (17/10/2026), pedida pelo usuário: interface mais simples, cores com
+significado, melhor uso da largura, visão geral por fazenda e relatório da fazenda.
+
+- **Visão geral da fazenda** (`fazendas/visao-geral.ts`) é a entrada da fazenda (a rota vazia
+  leva a ela). Filtros na URL (período, galpão, situação, lote), cartões de indicadores,
+  mortalidade diária, pontos de atenção, comparação dos lotes com escolha da medida (clique na
+  barra abre o lote), tabela completa recolhida e custos por categoria e por mês. API:
+  `GET fazendas/:id/visao-geral` (`producao/visao-geral.service.ts`).
+- **Relatório da fazenda** em PDF ou XLSX com o mesmo filtro da tela e as seções escolhidas:
+  `GET fazendas/:id/visao-geral/relatorio` (`producao/relatorio-fazenda.service.ts`). Chama a
+  própria visão geral, para os números baterem.
+- **Cor com significado** (regras em [01-mvp](01-mvp.md), Proposta): `tomDoNivel()`,
+  `tomDaMeta()` e `tomDoDesvioPeso()` no domínio. Verde, âmbar e vermelho só onde há limite ou
+  meta; o resto fica neutro. O selo `nucleo/estado.ts` leva ícone e texto; o cartão de
+  indicador aceita `tom` e `estado`. Atenção e crítico ainda destacam a borda; o verde fica só
+  no selo, para a tela seguir calma.
+- **Ícones** de traço em `nucleo/icone.ts` (SVG próprio, sem dependência nova), no menu, nos
+  selos e nos pontos de atenção.
+- **Menu:** "Visão geral" primeiro; "Painel" virou "Comparar lotes", para não confundir com a
+  visão geral.
+- **Espaço vazio à direita:** o conteúdo ao lado do menu tinha `max-width` de 1264 px sem
+  centralizar, e em telas largas sobrava uma faixa vazia. Agora ocupa a tela até
+  `--largura-maxima` (1760 px) e centraliza depois disso; a página inicial também. A grade de
+  cartões passou de `auto-fill` para `auto-fit`, para os cartões ocuparem a linha.
+- `nucleo/grafico-barras.ts`: barras horizontais de uma medida (uma cor, valor na ponta, zero
+  no meio com negativos, estado no selo). `grafico-linhas.ts` ganhou `formatoX`, `dominio` e
+  marcador com cor de estado por ponto.
+
+Paleta: continua a do Design System (verde `--primaria` #2f6b3a e neutros esverdeados; estados
+`--sucesso`, `--atencao`, `--critico`, `--info` sempre em par texto + fundo; séries
+`--serie-1..4` validadas). Não houve troca de cores: a mudança foi usar o verde, o âmbar e o
+vermelho só para estado, com regra por trás.
+
 Falta: as etapas E3, E4 e E6 ficaram para trás (a E5 foi feita direto no código); a revisão com o operador (tempo para lançar baixa e pesagem) ainda
 precisa ser feita.
 
@@ -269,9 +302,14 @@ precisa ser feita.
   totais de aves, galpões ocupados, alertas abertos e equipamentos parados, só nos galpões do
   vínculo. A página inicial (Minhas fazendas) faz uma chamada por fazenda.
 - Não há marca (logotipo, nome visual). Definir na E1 ou seguir só com o nome em texto.
+- Sem referência para mortalidade acumulada, conversão alimentar e IEP, esses indicadores
+  ficam sem cor. Se a equipe definir metas (por linhagem ou idade de abate), eles ganham tom.
+- "Natalidade" e "rebanho", citados no pedido de redesenho, não existem em frango de corte:
+  as aves chegam como pintos. Os equivalentes usados são aves alojadas e plantel atual.
 
 ## Perguntas para a equipe
 
 - Tema escuro entra no MVP ou fica para depois?
-- A tela inicial ao entrar na fazenda continua sendo a lista de lotes?
+- ~~A tela inicial ao entrar na fazenda continua sendo a lista de lotes?~~ Passou a ser a
+  visão geral (17/10/2026); a lista de lotes fica a um clique no menu.
 - Existe identidade visual (logo, cores) que o design deve seguir?
