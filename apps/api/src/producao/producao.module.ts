@@ -36,6 +36,6 @@ import { LotesController } from './producao.controller';
     DespesasService,
     PainelService,
   ],
-  exports: [DadosLote, LoteContexto],
+  exports: [DadosLote, LoteContexto, DespesasService],
 })
 export class ProducaoModule {}

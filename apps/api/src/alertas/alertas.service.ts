@@ -37,7 +37,10 @@ export class AlertasService {
         fazendaId: acesso.fazendaId,
         ...(filtro.status && { status: filtro.status }),
         ...(filtro.lote && { loteId: filtro.lote }),
-        ...(acesso.galpoes.length > 0 && { galpaoId: { in: acesso.galpoes } }),
+        // Alerta sem galpão (equipamento da fazenda) é visto por todos.
+        ...(acesso.galpoes.length > 0 && {
+          OR: [{ galpaoId: null }, { galpaoId: { in: acesso.galpoes } }],
+        }),
       },
       orderBy: [
         { status: 'asc' },
@@ -212,6 +215,7 @@ export class AlertasService {
       mensagem: a.mensagem,
       loteId: a.loteId,
       lote: a.loteId ? (codigo.get(a.loteId) ?? null) : null,
+      equipamentoId: a.equipamentoId,
       dataReferencia: paraISO(a.dataReferencia),
       abertoEm: a.abertoEm,
       atualizadoEm: a.atualizadoEm,

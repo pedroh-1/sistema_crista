@@ -13,19 +13,19 @@ NestJS × FastAPI/Django, PostgreSQL × MySQL e React × Vue.
 
 Usar TypeScript em todas as camadas, num monorepo Nx:
 
-| Camada                | Escolha                                              | Observação                                                                                  |
-| --------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| Monorepo              | Nx + npm                                             | Gera e orquestra Angular, NestJS e React Native                                             |
-| API                   | NestJS (REST)                                        | Um módulo NestJS por domínio: conta, fazenda, lote, sanidade, custos, alertas, equipamentos |
-| Banco                 | PostgreSQL 16+                                       | Um schema por módulo, para manter as fronteiras do monólito modular                         |
-| ORM e migrations      | Prisma                                               | Schema declarativo e migrations versionadas                                                 |
-| Web                   | Angular                                              | Gráficos com Chart.js (ng2-charts)                                                          |
-| Mobile (Fase 3)       | React Native + Expo + WatermelonDB                   | Banco local e fila de sincronização                                                         |
-| Regras compartilhadas | `libs/domain`                                        | Fórmulas dos indicadores, enums e schemas zod usados pela API, pelo web e pelo mobile       |
-| Fila de eventos       | Tabela `fila.tarefa` no PostgreSQL (outbox)          | Atende o RNF07 sem RabbitMQ nem Redis no MVP                                                |
-| Arquivos              | S3 (MinIO no ambiente local)                         | Anexos de até 10 MB (RNF08)                                                                 |
-| E-mail                | SMTP (Mailpit no local; SES ou SendGrid em produção) | Verificação de conta e convites                                                             |
-| Ambiente local        | Docker Compose                                       | postgres, minio e mailpit                                                                   |
+| Camada                  | Escolha                                              | Observação                                                                                  |
+| ----------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Monorepo                | Nx + npm                                             | Gera e orquestra Angular, NestJS e React Native                                             |
+| API                     | NestJS (REST)                                        | Um módulo NestJS por domínio: conta, fazenda, lote, sanidade, custos, alertas, equipamentos |
+| Banco                   | PostgreSQL 16+                                       | Um schema por módulo, para manter as fronteiras do monólito modular                         |
+| ORM e migrations        | Prisma                                               | Schema declarativo e migrations versionadas                                                 |
+| Web                     | Angular                                              | Gráficos com Chart.js (ng2-charts)                                                          |
+| Mobile (Fase 3, adiada) | React Native + Expo + WatermelonDB                   | Banco local e fila de sincronização                                                         |
+| Regras compartilhadas   | `libs/domain`                                        | Fórmulas dos indicadores, enums e schemas zod usados pela API, pelo web e pelo mobile       |
+| Fila de eventos         | Tabela `fila.tarefa` no PostgreSQL (outbox)          | Atende o RNF07 sem RabbitMQ nem Redis no MVP                                                |
+| Arquivos                | S3 (MinIO no ambiente local)                         | Anexos de até 10 MB (RNF08)                                                                 |
+| E-mail                  | SMTP (Mailpit no local; SES ou SendGrid em produção) | Verificação de conta e convites                                                             |
+| Ambiente local          | Docker Compose                                       | postgres, minio e mailpit                                                                   |
 
 ## Por quê
 

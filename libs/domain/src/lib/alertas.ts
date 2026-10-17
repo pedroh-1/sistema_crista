@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { Perfil } from './permissoes';
 import { dataISO, texto, textoOpcional } from './schemas';
 
 // ---------- Alertas de desvio (UC16) ----------
@@ -80,6 +81,18 @@ export const NOME_INDICADOR_ALERTA: Record<IndicadorAlerta, string> = {
   equipamento_parado: 'Equipamento crítico parado',
   falta_sinal: 'Sensor sem sinal',
 };
+
+/**
+ * Quem recebe o alerta crítico. O de equipamento vai ao Produtor, responsável
+ * pelos equipamentos (doc 02), em vez do Veterinário.
+ */
+export function perfisNotificados(
+  indicador: IndicadorAlerta,
+): readonly Perfil[] {
+  return indicador === 'equipamento_parado'
+    ? ['gestor', 'produtor']
+    : ['gestor', 'veterinario'];
+}
 
 /** Compara o valor com os limites, respeitando o sentido do indicador. */
 export function avaliarLimite(

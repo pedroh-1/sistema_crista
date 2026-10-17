@@ -83,6 +83,7 @@ async function main() {
   });
   if (existente) {
     await garantirCustos(existente.id);
+    await garantirEquipamentos(existente.id);
     console.log('Os dados de demonstração já existem.');
     imprimirContas();
     return;
@@ -282,6 +283,7 @@ async function main() {
   });
 
   await garantirCustos(fazenda.id);
+  await garantirEquipamentos(fazenda.id);
   console.log(
     'Dados de demonstração criados: Granja Demonstração, Galpões 1 e 2, lote DEMO-01 com 28 dias.',
   );
@@ -386,6 +388,150 @@ async function garantirCustos(fazendaId: string) {
   }
   console.log(
     'Despesas de demonstração lançadas no lote DEMO-01 (preço de referência R$ 6,20/kg).',
+  );
+}
+
+/** Equipamentos e manutenções (Fase 6). Só cria se a fazenda ainda não tiver equipamentos. */
+async function garantirEquipamentos(fazendaId: string) {
+  if ((await prisma.equipamento.count({ where: { fazendaId } })) > 0) return;
+  const [galpao1, galpao2] = await prisma.galpao.findMany({
+    where: { fazendaId },
+    orderBy: { identificacao: 'asc' },
+  });
+  const lote = await prisma.lote.findFirstOrThrow({
+    where: { fazendaId, codigo: 'DEMO-01' },
+  });
+  const produtor = await prisma.usuario.findUniqueOrThrow({
+    where: { email: 'produtor@demo.crista' },
+  });
+  const criar = (dados: {
+    nome: string;
+    tipo: 'ventilacao' | 'gerador' | 'aquecimento' | 'bebedouro' | 'comedouro';
+    galpaoId?: string;
+    numeroSerie?: string;
+    critico?: boolean;
+    periodicidadeDias?: number;
+    aquisicao?: number;
+  }) =>
+    prisma.equipamento.create({
+      data: {
+        fazendaId,
+        nome: dados.nome,
+        tipo: dados.tipo,
+        galpaoId: dados.galpaoId,
+        numeroSerie: dados.numeroSerie,
+        critico: dados.critico ?? false,
+        periodicidadeDias: dados.periodicidadeDias,
+        dataAquisicao:
+          dados.aquisicao === undefined ? undefined : dia(dados.aquisicao),
+      },
+    });
+
+  const exaustores = await criar({
+    nome: 'Exaustores (bateria de 8)',
+    tipo: 'ventilacao',
+    galpaoId: galpao1.id,
+    critico: true,
+    periodicidadeDias: 30,
+    aquisicao: -400,
+  });
+  const gerador = await criar({
+    nome: 'Gerador 150 kVA',
+    tipo: 'gerador',
+    numeroSerie: 'GE-150-2291',
+    critico: true,
+    periodicidadeDias: 90,
+    aquisicao: -700,
+  });
+  const fornalha = await criar({
+    nome: 'Fornalha a lenha',
+    tipo: 'aquecimento',
+    galpaoId: galpao1.id,
+    periodicidadeDias: 60,
+  });
+  await criar({
+    nome: 'Bebedouros nipple',
+    tipo: 'bebedouro',
+    galpaoId: galpao2.id,
+    periodicidadeDias: 120,
+    aquisicao: -200,
+  });
+  await criar({
+    nome: 'Comedouros automáticos',
+    tipo: 'comedouro',
+    galpaoId: galpao2.id,
+  });
+
+  const manutencoes = [
+    {
+      e: exaustores,
+      d: -20,
+      tipo: 'preventiva',
+      descricao: 'Limpeza das hélices e tensão das correias',
+      pecas: 0,
+      maoObra: 250,
+    },
+    {
+      e: gerador,
+      d: -110,
+      tipo: 'preventiva',
+      descricao: 'Troca de óleo e filtros',
+      pecas: 640,
+      maoObra: 300,
+    },
+    {
+      e: fornalha,
+      d: -15,
+      tipo: 'corretiva',
+      descricao: 'Troca do motor do ventilador da fornalha',
+      pecas: 380,
+      maoObra: 150,
+      parada: [-15, 6, 9] as const,
+    },
+  ] as const;
+  for (const m of manutencoes) {
+    const parada = 'parada' in m ? m.parada : null;
+    const hora = (h: number) => {
+      const d = dia(parada![0]);
+      d.setUTCHours(h + 3); // hora de São Paulo
+      return d;
+    };
+    const criada = await prisma.manutencao.create({
+      data: {
+        fazendaId,
+        equipamentoId: m.e.id,
+        tipo: m.tipo,
+        data: dia(m.d),
+        descricao: m.descricao,
+        custoPecas: m.pecas,
+        custoMaoObra: m.maoObra,
+        paradaInicio: parada ? hora(parada[1]) : undefined,
+        retornoOperacao: parada ? hora(parada[2]) : undefined,
+        criadoPorId: produtor.id,
+      },
+    });
+    const valor = m.pecas + m.maoObra;
+    // Equipamento do galpão 1 vai para o DEMO-01; o gerador (da fazenda) também,
+    // por ser o único lote ativo. A manutenção de 110 dias atrás é de antes do lote.
+    const noLote = m.d >= -28;
+    await prisma.despesa.create({
+      data: {
+        fazendaId,
+        data: dia(m.d),
+        categoria: 'manutencao',
+        descricao: `Manutenção ${m.tipo}: ${m.e.nome}`,
+        valor,
+        origem: 'manutencao',
+        manutencaoId: criada.id,
+        criadoPorId: produtor.id,
+        rateios: noLote
+          ? { create: [{ loteId: lote.id, percentual: 100, valor }] }
+          : undefined,
+      },
+    });
+  }
+  console.log(
+    'Equipamentos de demonstração cadastrados (preventiva do gerador vencida).',
   );
 }
 

@@ -117,6 +117,20 @@ export const appRoutes: Route[] = [
               import('./custos/painel').then((m) => m.Painel),
           },
           {
+            path: 'equipamentos',
+            loadComponent: () =>
+              import('./equipamentos/lista-equipamentos').then(
+                (m) => m.ListaEquipamentos,
+              ),
+          },
+          {
+            path: 'equipamentos/:idEquipamento',
+            loadComponent: () =>
+              import('./equipamentos/pagina-equipamento').then(
+                (m) => m.PaginaEquipamento,
+              ),
+          },
+          {
             path: 'galpoes',
             loadComponent: () =>
               import('./fazendas/galpoes').then((m) => m.Galpoes),

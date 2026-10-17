@@ -40,6 +40,13 @@ export interface NovaDespesaInterna {
   criterioRateio: CriterioRateio;
   percentuais?: number[];
   origem: OrigemDespesa;
+  /** Manutenção que gerou a despesa (UC19). */
+  manutencaoId?: string;
+  /**
+   * Os lotes foram escolhidos pelo sistema, não por quem lança: o rateio vale
+   * mesmo para lotes de galpões que o vínculo não vê (ex.: equipamento da fazenda).
+   */
+  rateioPeloSistema?: boolean;
   duplicidadeConfirmada?: boolean;
 }
 
@@ -103,6 +110,7 @@ export class DespesasService {
         numeroNota: dados.numeroNota,
         criterioRateio: dados.lotes.length > 1 ? dados.criterioRateio : null,
         origem: dados.origem,
+        manutencaoId: dados.manutencaoId,
         duplicidadeConfirmada: dados.duplicidadeConfirmada ?? false,
         criadoPorId: acesso.usuarioId,
         rateios: { create: parcelas },
@@ -178,6 +186,11 @@ export class DespesasService {
         'Esta despesa veio de uma entrega de ração: corrija pela aba Ração do lote',
       );
     }
+    if (despesa.origem === 'manutencao') {
+      throw new ConflictException(
+        'Esta despesa veio de uma manutenção: corrija pela página do equipamento',
+      );
+    }
     if (
       await this.prisma.estorno.findUnique({ where: { idEvento: despesaId } })
     ) {
@@ -223,7 +236,10 @@ export class DespesasService {
     const porId = new Map(lotes.map((l) => [l.id, l]));
     for (const id of ids) {
       const lote = porId.get(id);
-      if (!lote || !podeVerGalpao(acesso, lote.galpaoId))
+      if (
+        !lote ||
+        (!dados.rateioPeloSistema && !podeVerGalpao(acesso, lote.galpaoId))
+      )
         throw this.erroLotes('Lote não encontrado');
       if (lote.situacao !== 'em_andamento')
         throw this.erroLotes(`O lote ${lote.codigo} não está em andamento`);

@@ -222,6 +222,12 @@ const vazio = () => ({
                     <span class="suave" title="Corrija pela aba Ração do lote"
                       >Ração</span
                     >
+                  } @else if (d.origem === 'manutencao') {
+                    <span
+                      class="suave"
+                      title="Corrija pela página do equipamento"
+                      >Manutenção</span
+                    >
                   } @else if (atual.pode('despesa.registrar')) {
                     <button
                       type="button"

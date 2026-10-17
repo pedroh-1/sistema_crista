@@ -1,6 +1,6 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { hojeISO } from '@crista/domain';
+import { hojeISO, perfisNotificados } from '@crista/domain';
 import { EmailService } from '../email/email.service';
 import { FilaService } from '../fila/fila.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -39,7 +39,7 @@ export class NotificadorAlertas implements OnModuleInit {
       where: {
         fazendaId: alerta.fazendaId,
         status: 'ativo',
-        perfil: { in: ['gestor', 'veterinario'] },
+        perfil: { in: [...perfisNotificados(alerta.indicador)] },
         usuarioId: { not: null },
         OR: [{ validoAte: null }, { validoAte: { gte: new Date(hojeISO()) } }],
       },

@@ -43,6 +43,7 @@ import { FazendaAtual } from './fazenda-atual';
             }
           </a>
           <a routerLink="galpoes" routerLinkActive="ativa">Galpões</a>
+          <a routerLink="equipamentos" routerLinkActive="ativa">Equipamentos</a>
           @if (atual.pode('vinculo.gerenciar')) {
             <a routerLink="equipe" routerLinkActive="ativa">Equipe</a>
           }

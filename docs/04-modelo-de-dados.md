@@ -63,20 +63,20 @@ quando entra na Fase 1 ou 2, ou a fase em que entra depois.
 
 ## alertas
 
-| Tabela                    | Campos principais                                                                                                                  | Observação                                                 |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| `regra_alerta` (Fase 5)   | id_fazenda, id_galpao, indicador, limite_atencao, limite_critico, origem (`padrao_linhagem`/`configurado`)                         | **Nova**                                                   |
-| `alerta` (Fase 5)         | id_fazenda, id_lote, id_galpao, indicador, valor, criticidade, status (`aberto`/`reconhecido`/`fechado`), providencia, fechado_por | Era `alerta_desvio`; enums ampliados (inconsistência #8)   |
-| `notificacao` (Fase 5)    | id_alerta, id_usuario, canal (`email`/`push`/`sms`), status_envio, tentativas                                                      | **Nova**: separa o alerta da sua entrega                   |
-| `dispositivo` (Fase 7)    | id_fazenda, id_galpao, tipo, identificador, ultimo_sinal_em                                                                        | **Nova**; o alerta de falta de sinal usa `ultimo_sinal_em` |
-| `leitura_sensor` (Fase 7) | id_dispositivo, medido_em, grandeza, valor                                                                                         | **Nova**; avaliar particionamento por mês                  |
+| Tabela                    | Campos principais                                                                                                                                           | Observação                                                 |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `regra_alerta` (Fase 5)   | id_fazenda, id_galpao, indicador, limite_atencao, limite_critico, origem (`padrao_linhagem`/`configurado`)                                                  | **Nova**                                                   |
+| `alerta` (Fase 5)         | id_fazenda, id_lote, id_galpao, id_equipamento (Fase 6), indicador, valor, criticidade, status (`aberto`/`reconhecido`/`fechado`), providencia, fechado_por | Era `alerta_desvio`; enums ampliados (inconsistência #8)   |
+| `notificacao` (Fase 5)    | id_alerta, id_usuario, canal (`email`/`push`/`sms`), status_envio, tentativas                                                                               | **Nova**: separa o alerta da sua entrega                   |
+| `dispositivo` (Fase 7)    | id_fazenda, id_galpao, tipo, identificador, ultimo_sinal_em                                                                                                 | **Nova**; o alerta de falta de sinal usa `ultimo_sinal_em` |
+| `leitura_sensor` (Fase 7) | id_dispositivo, medido_em, grandeza, valor                                                                                                                  | **Nova**; avaliar particionamento por mês                  |
 
 ## equipamentos (Fase 6)
 
-| Tabela                   | Campos principais                                                                                              | Observação                                           |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| `equipamento`            | id_fazenda, id_galpao (opcional), numero_serie (único na fazenda), critico, periodicidade_dias, data_aquisicao | Inconsistência #4                                    |
-| `manutencao_equipamento` | id_equipamento, tipo, data, custo_pecas, custo_mao_obra, parada_inicio, retorno_operacao, ordem_servico        | O custo gera uma `despesa` com `origem = manutencao` |
+| Tabela                   | Campos principais                                                                                                                                                            | Observação                                                                                      |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `equipamento`            | id_fazenda, id_galpao (opcional), nome, tipo, numero_serie (único na fazenda), fabricante, modelo, critico, periodicidade_dias, data_aquisicao, situacao (`ativo`/`inativo`) | Inconsistência #4. Cadastro editável, com auditoria                                             |
+| `manutencao_equipamento` | id_equipamento, tipo (`preventiva`/`corretiva`), data, descricao, custo_pecas, custo_mao_obra, fornecedor, ordem_servico, parada_inicio, retorno_operacao, retorno_por       | O custo gera uma `despesa` com `origem = manutencao`. Só inserção, exceto o registro do retorno |
 
 ## Transversais
 

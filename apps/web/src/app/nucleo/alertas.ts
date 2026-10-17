@@ -11,6 +11,8 @@ export interface Alerta {
   mensagem: string;
   loteId: string | null;
   lote: string | null;
+  /** Alerta de equipamento crítico parado (UC19). */
+  equipamentoId: string | null;
   dataReferencia: string;
   abertoEm: string;
   atualizadoEm: string;

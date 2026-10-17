@@ -9,7 +9,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  schemas  = ["conta", "fazenda", "producao", "sanidade", "custos", "alertas", "referencia", "arquivo", "fila", "auditoria"]
+  schemas  = ["conta", "fazenda", "producao", "sanidade", "custos", "alertas", "equipamentos", "referencia", "arquivo", "fila", "auditoria"]
 }
 
 // ---------- conta ----------
@@ -151,9 +151,10 @@ model Galpao {
   situacao       SituacaoGalpao @default(disponivel)
   criadoEm       DateTime       @default(now()) @map("criado_em")
 
-  fazenda  Fazenda         @relation(fields: [fazendaId], references: [id])
-  vinculos VinculoGalpao[]
-  lotes    Lote[]
+  fazenda      Fazenda         @relation(fields: [fazendaId], references: [id])
+  vinculos     VinculoGalpao[]
+  lotes        Lote[]
+  equipamentos Equipamento[]
 
   @@unique([fazendaId, identificacao])
   @@map("galpao")
@@ -523,6 +524,8 @@ model Despesa {
   numeroNota            String?          @map("numero_nota")
   criterioRateio        CriterioRateio?  @map("criterio_rateio")
   origem                OrigemDespesa    @default(manual)
+  // Despesa gerada pelo custo de uma manutenção (UC19)
+  manutencaoId          String?          @map("id_manutencao") @db.Uuid
   duplicidadeConfirmada Boolean          @default(false) @map("duplicidade_confirmada")
   status                StatusEvento     @default(valido)
   registradoEm          DateTime         @default(now()) @map("registrado_em")
@@ -533,6 +536,7 @@ model Despesa {
 
   @@index([fazendaId, data])
   @@index([fazendaId, numeroNota])
+  @@index([manutencaoId])
   @@map("despesa")
   @@schema("custos")
 }
@@ -621,6 +625,8 @@ model Alerta {
   fazendaId      String          @map("id_fazenda") @db.Uuid
   loteId         String?         @map("id_lote") @db.Uuid
   galpaoId       String?         @map("id_galpao") @db.Uuid
+  // Alerta de equipamento parado (UC19): um aberto por equipamento
+  equipamentoId  String?         @map("id_equipamento") @db.Uuid
   indicador      IndicadorAlerta
   criticidade    Criticidade
   valor          Decimal         @db.Decimal(12, 4)
@@ -658,6 +664,88 @@ model Notificacao {
   @@index([alertaId])
   @@map("notificacao")
   @@schema("alertas")
+}
+
+// ---------- equipamentos (UC18 e UC19) ----------
+
+enum TipoEquipamento {
+  comedouro
+  bebedouro
+  ventilacao
+  aquecimento
+  nebulizacao
+  iluminacao
+  gerador
+  outro
+
+  @@schema("equipamentos")
+}
+
+enum SituacaoEquipamento {
+  ativo
+  inativo
+
+  @@schema("equipamentos")
+}
+
+enum TipoManutencao {
+  preventiva
+  corretiva
+
+  @@schema("equipamentos")
+}
+
+// Cadastro: editável pela web, com auditoria. Sem galpão, é da fazenda inteira
+// (inconsistência #4).
+model Equipamento {
+  id                String              @id @default(uuid(7)) @db.Uuid
+  fazendaId         String              @map("id_fazenda") @db.Uuid
+  galpaoId          String?             @map("id_galpao") @db.Uuid
+  nome              String
+  tipo              TipoEquipamento
+  numeroSerie       String?             @map("numero_serie")
+  fabricante        String?
+  modelo            String?
+  critico           Boolean             @default(false)
+  periodicidadeDias Int?                @map("periodicidade_dias")
+  dataAquisicao     DateTime?           @map("data_aquisicao") @db.Date
+  situacao          SituacaoEquipamento @default(ativo)
+  criadoEm          DateTime            @default(now()) @map("criado_em")
+
+  galpao      Galpao?      @relation(fields: [galpaoId], references: [id])
+  manutencoes Manutencao[]
+
+  // Nulos não colidem: a série só é única quando informada.
+  @@unique([fazendaId, numeroSerie])
+  @@index([fazendaId])
+  @@map("equipamento")
+  @@schema("equipamentos")
+}
+
+// Evento: só aceita inserção, exceto o registro do retorno de uma parada aberta.
+// A correção é um estorno, que leva junto a despesa gerada.
+model Manutencao {
+  id              String         @id @default(uuid(7)) @db.Uuid
+  fazendaId       String         @map("id_fazenda") @db.Uuid
+  equipamentoId   String         @map("id_equipamento") @db.Uuid
+  tipo            TipoManutencao
+  data            DateTime       @db.Date
+  descricao       String
+  custoPecas      Decimal        @default(0) @map("custo_pecas") @db.Decimal(14, 2)
+  custoMaoObra    Decimal        @default(0) @map("custo_mao_obra") @db.Decimal(14, 2)
+  fornecedor      String?
+  ordemServico    String?        @map("ordem_servico")
+  paradaInicio    DateTime?      @map("parada_inicio")
+  retornoOperacao DateTime?      @map("retorno_operacao")
+  retornoPorId    String?        @map("retorno_por") @db.Uuid
+  registradoEm    DateTime       @default(now()) @map("registrado_em")
+  criadoPorId     String         @map("criado_por") @db.Uuid
+
+  equipamento Equipamento @relation(fields: [equipamentoId], references: [id])
+
+  @@index([equipamentoId, data])
+  @@map("manutencao_equipamento")
+  @@schema("equipamentos")
 }
 
 // ---------- fila ----------

@@ -41,6 +41,12 @@ interface Regra {
                 >
                 ·
               }
+              @if (a.equipamentoId) {
+                <a [routerLink]="atual.link('equipamentos', a.equipamentoId)"
+                  >Ver equipamento</a
+                >
+                ·
+              }
               {{ data(a.dataReferencia) }}
             </span>
           </div>

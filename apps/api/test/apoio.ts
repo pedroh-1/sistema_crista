@@ -31,6 +31,8 @@ const TABELAS = [
   'fila.tarefa',
   'custos.despesa',
   'custos.despesa_rateio',
+  'equipamentos.equipamento',
+  'equipamentos.manutencao_equipamento',
   'arquivo.anexo',
   'auditoria.evento_auditoria',
 ];
