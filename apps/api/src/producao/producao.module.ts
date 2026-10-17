@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { AnexosController } from '../anexos/anexos.controller';
 import { AnexosService } from '../anexos/anexos.service';
-import { Armazenamento } from '../anexos/armazenamento';
+import { armazenamentoProvider } from '../anexos/armazenamento';
 import { CustosController } from '../custos/custos.controller';
 import { DespesasService } from '../custos/despesas.service';
 import { PainelService } from '../custos/painel.service';
+import { VisoesService } from '../custos/visoes.service';
 import { SanidadeController } from '../sanidade/sanidade.controller';
 import { OcorrenciasService } from '../sanidade/ocorrencias.service';
 import { DadosLote } from './dados-lote';
@@ -29,12 +30,13 @@ import { LotesController } from './producao.controller';
     EventosService,
     OcorrenciasService,
     AnexosService,
-    Armazenamento,
+    armazenamentoProvider,
     DadosLote,
     EncerramentoService,
     RelatorioService,
     DespesasService,
     PainelService,
+    VisoesService,
   ],
   exports: [DadosLote, LoteContexto, DespesasService],
 })

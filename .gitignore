@@ -58,3 +58,4 @@ vitest.config.*.timestamp*
 .env
 apps/api/src/generated
 armazenamento/
+backups/

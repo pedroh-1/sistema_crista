@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -13,6 +14,7 @@ import {
   estornoSchema,
   filtroPainelSchema,
   FiltroPainel,
+  visaoSalvaSchema,
 } from '@crista/domain';
 import { z } from 'zod';
 import { ZodPipe } from '../comum/zod.pipe';
@@ -24,6 +26,7 @@ import {
 } from '../fazendas/acesso-fazenda.guard';
 import { DespesasService } from './despesas.service';
 import { PainelService } from './painel.service';
+import { VisoesService } from './visoes.service';
 
 const filtroDespesasSchema = z.object({ lote: z.uuid().optional() });
 
@@ -33,6 +36,7 @@ export class CustosController {
   constructor(
     private readonly despesas: DespesasService,
     private readonly painel: PainelService,
+    private readonly visoes: VisoesService,
   ) {}
 
   // ---------- UC12 ----------
@@ -76,5 +80,31 @@ export class CustosController {
     @Query(new ZodPipe(filtroPainelSchema)) filtro: FiltroPainel,
   ) {
     return this.painel.comparar(acesso, filtro);
+  }
+
+  @Get('visoes')
+  @Permite('painel.filtrar')
+  listarVisoes(@Acesso() acesso: AcessoFazenda) {
+    return this.visoes.listar(acesso);
+  }
+
+  @Post('visoes')
+  @Permite('painel.filtrar')
+  salvarVisao(
+    @Acesso() acesso: AcessoFazenda,
+    @Body(new ZodPipe(visaoSalvaSchema))
+    dados: z.output<typeof visaoSalvaSchema>,
+  ) {
+    return this.visoes.salvar(acesso, dados);
+  }
+
+  @Delete('visoes/:idVisao')
+  @Permite('painel.filtrar')
+  @HttpCode(204)
+  excluirVisao(
+    @Acesso() acesso: AcessoFazenda,
+    @Param('idVisao') idVisao: string,
+  ) {
+    return this.visoes.excluir(acesso, idVisao);
   }
 }

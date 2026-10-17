@@ -7,6 +7,7 @@ import {
   tokenSchema,
 } from '@crista/domain';
 import { z } from 'zod';
+import { LimiteDeConta } from '../comum/limites';
 import { ZodPipe } from '../comum/zod.pipe';
 import { Publico, UsuarioAtual, UsuarioAutenticado } from './auth.guard';
 import { AuthService } from './auth.service';
@@ -18,6 +19,7 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Publico()
+  @LimiteDeConta()
   @Post('cadastro')
   cadastrar(
     @Body(new ZodPipe(cadastroUsuarioSchema)) dados: CadastroUsuario,
@@ -27,6 +29,7 @@ export class AuthController {
   }
 
   @Publico()
+  @LimiteDeConta()
   @Post('verificar-email')
   @HttpCode(204)
   verificarEmail(@Body(new ZodPipe(tokenSchema)) { token }: { token: string }) {
@@ -34,6 +37,7 @@ export class AuthController {
   }
 
   @Publico()
+  @LimiteDeConta()
   @Post('reenviar-verificacao')
   @HttpCode(204)
   reenviarVerificacao(
@@ -43,6 +47,7 @@ export class AuthController {
   }
 
   @Publico()
+  @LimiteDeConta()
   @Post('login')
   @HttpCode(200)
   login(@Body(new ZodPipe(loginSchema)) dados: Login) {

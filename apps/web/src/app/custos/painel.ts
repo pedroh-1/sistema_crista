@@ -2,9 +2,11 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
+  FiltrosVisao,
   Indicador,
   MAXIMO_LOTES_COMPARACAO,
   NOME_LINHAGEM,
+  visaoSalvaSchema,
 } from '@crista/domain';
 import { firstValueFrom } from 'rxjs';
 import { FazendaAtual } from '../fazendas/fazenda-atual';
@@ -15,13 +17,19 @@ import {
   PontoPesagem,
   ResumoLote,
 } from '../lotes/tipos';
-import { mensagemErro } from '../nucleo/erros';
+import { mensagemErro, validar } from '../nucleo/erros';
 import {
   formatarData,
   formatarIndicador,
   formatarNumero,
 } from '../nucleo/formato';
 import { GraficoLinhas, SerieGrafico } from '../nucleo/grafico-linhas';
+
+interface VisaoSalva {
+  id: string;
+  nome: string;
+  filtros: FiltrosVisao;
+}
 
 interface LoteNoPainel {
   id: string;
@@ -193,6 +201,39 @@ const LINHAS_FINANCEIRAS: Linha[] = [
           Comparar
         </button>
       </div>
+      <div class="periodo visoes">
+        <label>
+          Visões salvas
+          <select
+            name="visao"
+            [ngModel]="visaoEscolhida()"
+            (ngModelChange)="aplicarVisao($event)"
+          >
+            <option value="">
+              {{ visoes().length ? 'Escolha uma visão…' : 'Nenhuma salva' }}
+            </option>
+            @for (v of visoes(); track v.id) {
+              <option [value]="v.id">{{ v.nome }}</option>
+            }
+          </select>
+        </label>
+        <button
+          type="button"
+          class="secundario"
+          (click)="salvarVisao()"
+          [disabled]="selecionados().length === 0"
+        >
+          Salvar esta visão
+        </button>
+        @if (visaoEscolhida()) {
+          <button type="button" class="perigo" (click)="excluirVisao()">
+            Excluir visão
+          </button>
+        }
+      </div>
+      @if (avisoVisao()) {
+        <p class="alerta aviso" role="status">{{ avisoVisao() }}</p>
+      }
     </section>
 
     @if (resultado(); as r) {
@@ -274,6 +315,10 @@ const LINHAS_FINANCEIRAS: Linha[] = [
     .periodo input {
       width: auto;
     }
+    .visoes {
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--borda);
+    }
     .chave {
       display: inline-block;
       width: 12px;
@@ -307,6 +352,9 @@ export class Painel implements OnInit {
   protected readonly resultado = signal<RespostaPainel | null>(null);
   protected readonly erro = signal('');
   protected readonly carregando = signal(false);
+  protected readonly visoes = signal<VisaoSalva[]>([]);
+  protected readonly visaoEscolhida = signal('');
+  protected readonly avisoVisao = signal('');
   protected modo: 'hoje' | 'idade' | 'data' = 'hoje';
   protected idadeDe: number | null = null;
   protected idadeAte: number | null = null;
@@ -368,6 +416,7 @@ export class Painel implements OnInit {
         this.http.get<LoteResumido[]>(`${this.atual.url()}/lotes`),
       );
       this.lotes.set(lotes.filter((l) => l.situacao !== 'cancelado'));
+      await this.carregarVisoes();
       // Começa com os lotes em andamento, até o máximo.
       for (const l of lotes
         .filter((x) => x.situacao === 'em_andamento')
@@ -400,6 +449,89 @@ export class Painel implements OnInit {
     const livre = [1, 2, 3, 4].find((s) => !usados.has(s)) ?? 1;
     this.selecionados.set([...atuais, id]);
     this.slots.update((s) => ({ ...s, [id]: livre }));
+  }
+
+  /** Reaplica os filtros guardados; lote que não existe mais fica de fora, com aviso. */
+  async aplicarVisao(id: string): Promise<void> {
+    this.visaoEscolhida.set(id);
+    this.avisoVisao.set('');
+    const visao = this.visoes().find((v) => v.id === id);
+    if (!visao) return;
+    const f = visao.filtros;
+    const existentes = new Set(this.lotes().map((l) => l.id));
+    this.selecionados.set([]);
+    this.slots.set({});
+    for (const lote of f.lotes.filter((l) => existentes.has(l)))
+      this.alternar(lote);
+    const fora = f.lotes.length - this.selecionados().length;
+    if (fora > 0)
+      this.avisoVisao.set(
+        `${fora} lote(s) desta visão não estão mais disponíveis e ficaram de fora.`,
+      );
+    this.modo = f.modo;
+    this.idadeDe = f.idadeDe ?? null;
+    this.idadeAte = f.idadeAte ?? null;
+    this.de = f.de ?? '';
+    this.ate = f.ate ?? '';
+    if (this.selecionados().length > 0) await this.comparar();
+  }
+
+  async salvarVisao(): Promise<void> {
+    const atual = this.visoes().find((v) => v.id === this.visaoEscolhida());
+    const nome = prompt(
+      'Nome da visão (um nome que já existe é substituído):',
+      atual?.nome ?? '',
+    );
+    if (!nome?.trim()) return;
+    const v = validar(visaoSalvaSchema, {
+      nome,
+      filtros: {
+        lotes: this.selecionados(),
+        modo: this.modo,
+        idadeDe: this.idadeDe ?? undefined,
+        idadeAte: this.idadeAte ?? undefined,
+        de: this.de || undefined,
+        ate: this.ate || undefined,
+      },
+    });
+    if (!v.ok) {
+      this.erro.set(Object.values(v.erros)[0]);
+      return;
+    }
+    this.erro.set('');
+    try {
+      const salva = await firstValueFrom(
+        this.http.post<VisaoSalva>(`${this.atual.url()}/visoes`, v.dados),
+      );
+      await this.carregarVisoes();
+      this.visaoEscolhida.set(salva.id);
+      this.avisoVisao.set('');
+    } catch (e) {
+      this.erro.set(mensagemErro(e));
+    }
+  }
+
+  async excluirVisao(): Promise<void> {
+    const visao = this.visoes().find((v) => v.id === this.visaoEscolhida());
+    if (!visao || !confirm(`Excluir a visão "${visao.nome}"?`)) return;
+    this.erro.set('');
+    try {
+      await firstValueFrom(
+        this.http.delete(`${this.atual.url()}/visoes/${visao.id}`),
+      );
+      this.visaoEscolhida.set('');
+      await this.carregarVisoes();
+    } catch (e) {
+      this.erro.set(mensagemErro(e));
+    }
+  }
+
+  private async carregarVisoes(): Promise<void> {
+    this.visoes.set(
+      await firstValueFrom(
+        this.http.get<VisaoSalva[]>(`${this.atual.url()}/visoes`),
+      ),
+    );
   }
 
   async comparar(): Promise<void> {

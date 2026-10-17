@@ -19,6 +19,7 @@ import {
 } from '@crista/domain';
 import { z } from 'zod';
 import { Publico, UsuarioAtual, UsuarioAutenticado } from '../auth/auth.guard';
+import { LimiteDeConta } from '../comum/limites';
 import { ZodPipe } from '../comum/zod.pipe';
 import {
   Acesso,
@@ -135,6 +136,7 @@ export class ConvitesController {
   constructor(private readonly vinculos: VinculosService) {}
 
   @Publico()
+  @LimiteDeConta()
   @Post('consultar')
   @HttpCode(200)
   consultar(@Body(new ZodPipe(tokenSchema)) { token }: { token: string }) {

@@ -558,6 +558,21 @@ model DespesaRateio {
   @@schema("custos")
 }
 
+// Filtros do painel guardados pelo usuário (UC15). Preferência pessoal, editável.
+model VisaoSalva {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  usuarioId    String   @map("id_usuario") @db.Uuid
+  fazendaId    String   @map("id_fazenda") @db.Uuid
+  nome         String
+  filtros      Json
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @default(now()) @updatedAt @map("atualizado_em")
+
+  @@unique([usuarioId, fazendaId, nome])
+  @@map("visao_salva")
+  @@schema("custos")
+}
+
 // ---------- alertas (UC16) ----------
 
 enum IndicadorAlerta {

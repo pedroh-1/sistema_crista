@@ -47,4 +47,7 @@ npm run lint
 npm run build
 npx nx test domain        # testes de um projeto
 npx nx prisma-migrate api # cria e aplica migrations
+npm run backup            # backup do banco (e dos anexos em disco), ver docs/07-producao.md
 ```
+
+Para colocar em produção, siga [docs/07-producao.md](docs/07-producao.md).

@@ -53,6 +53,7 @@ const vazio = () => ({
             <input
               type="number"
               name="mortes"
+              inputmode="numeric"
               min="0"
               [(ngModel)]="dados.mortes"
             />
@@ -65,6 +66,7 @@ const vazio = () => ({
             <input
               type="number"
               name="descartes"
+              inputmode="numeric"
               min="0"
               [(ngModel)]="dados.descartes"
             />

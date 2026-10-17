@@ -243,3 +243,45 @@ button,
   background: #fff4dc;
   color: #6b4b00;
 }
+
+/* Celular: o operador lança baixa, pesagem e ração pelo navegador, no galpão (Fase 8). */
+@media (max-width: 640px) {
+  .pagina {
+    padding: 1rem 0.75rem 3rem;
+  }
+
+  .cartao {
+    padding: 1rem;
+  }
+
+  .grade-2 {
+    grid-template-columns: 1fr;
+  }
+
+  /* 16px evita o zoom automático do iOS ao tocar no campo; 44px é o alvo de toque mínimo. */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+    min-height: 44px;
+  }
+
+  button,
+  .botao {
+    min-height: 44px;
+  }
+
+  .formulario button[type='submit'] {
+    width: 100%;
+  }
+
+  label.caixa input {
+    min-height: auto;
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .tabela {
+    font-size: 0.85rem;
+  }
+}

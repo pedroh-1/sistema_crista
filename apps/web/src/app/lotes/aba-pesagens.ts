@@ -86,12 +86,13 @@ function lerPesos(texto: string): number[] {
         </div>
         @if (dados.modo === 'individual') {
           <label>
-            Pesos individuais em gramas, separados por espaço ou linha
+            Pesos individuais em gramas, separados por espaço, vírgula ou linha
             <textarea
               name="pesos"
+              inputmode="decimal"
               rows="4"
               [(ngModel)]="dados.pesosTexto"
-              placeholder="1020 980 1100 1045 …"
+              placeholder="1020, 980, 1100, 1045 …"
             ></textarea>
             <span class="suave">{{ contagem() }}</span>
           </label>
@@ -102,6 +103,7 @@ function lerPesos(texto: string): number[] {
               <input
                 type="number"
                 name="aves"
+                inputmode="numeric"
                 min="1"
                 [(ngModel)]="dados.avesPesadas"
               />
@@ -111,6 +113,7 @@ function lerPesos(texto: string): number[] {
               <input
                 type="number"
                 name="total"
+                inputmode="decimal"
                 min="0"
                 step="0.001"
                 [(ngModel)]="dados.pesoTotalKg"

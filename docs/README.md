@@ -12,6 +12,7 @@ Documentos da Fase 0. Eles corrigem e completam o "CRISTA Avicultura: documento 
 | [04-modelo-de-dados.md](04-modelo-de-dados.md)         | Modelo de dados v2                                              |
 | [05-sincronizacao.md](05-sincronizacao.md)             | Regra de sincronização offline e de correção de registros       |
 | [06-dados-de-referencia.md](06-dados-de-referencia.md) | Curvas por linhagem e mortalidade esperada                      |
+| [07-producao.md](07-producao.md)                       | Implantação, variáveis de ambiente, S3, e-mail e backup         |
 
 Marcação usada nos documentos:
 

@@ -7,11 +7,13 @@ arquivos vizinhos.
 
 ## Situação atual (17/10/2026)
 
-- **Entregues:** Fases 0, 1, 2, 4, 5 e 6 (UC01 a UC19), todas web + API.
+- **Entregues:** Fases 0, 1, 2, 4, 5, 6 e 8 (UC01 a UC19), todas web + API.
 - **Decisão do usuário: foco só na aplicação web.** O app de campo offline (Fase 3) e o IoT
   (Fase 7) estão adiados, sem data. Não proponha retomá-los sem o usuário pedir.
-- **Próximo passo: Fase 8**, acabamento do web: visões salvas do UC15, lançamentos usáveis no
-  celular pelo navegador, preparo para produção (anexos em S3, e-mail real, backup).
+- **Fase 8 entregue:** visões salvas do UC15, uso no celular pelo navegador e preparo para
+  produção (docs/07-producao.md). **Todas as fases web do plano estão feitas.** O que resta
+  está na lista de conferência do doc 07 (curva oficial, limites validados, termos LGPD) e nas
+  regras marcadas como **Proposta** em docs/01-mvp.md, que a equipe precisa confirmar.
 
 ### Como a Fase 6 ficou (referência)
 
@@ -22,6 +24,16 @@ arquivos vizinhos.
 - Alerta `equipamento_parado`: tarefa `avaliar-equipamento` na fila, avaliada em
   `alertas/avaliador-equipamento.service.ts`; tem `id_equipamento` e `id_lote` nulo.
 - Regras novas registradas como **Proposta** em docs/01-mvp.md.
+
+### Como a Fase 8 ficou (referência)
+
+- Visões salvas: `custos/visoes.service.ts`, tabela `custos.visao_salva` (pessoal, sem auditoria).
+- Anexos: `Armazenamento` é classe abstrata; `ARMAZENAMENTO=disco|s3` escolhe a implementação.
+- Variáveis de ambiente validadas na subida (`comum/ambiente.ts`); em produção, exige segredo
+  forte, https e SMTP.
+- Limite de requisições (`@nestjs/throttler`): `@LimiteDeConta()` nas rotas públicas de conta.
+  Os testes de integração rodam com `LIMITE_REQUISICOES=desligado`.
+- Backup: `npm run backup` (`scripts/backup.sh`).
 
 ## Estrutura
 

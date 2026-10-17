@@ -12,19 +12,19 @@
 
 ## Fases
 
-| Fase | Entrega                                                                                          | UCs              | Marco |
-| ---- | ------------------------------------------------------------------------------------------------ | ---------------- | ----- |
-| 0    | Documentos desta pasta e esqueleto do repositório                                                | —                | 1     |
-| 1    | Conta, fazenda, galpão, vínculo e convite, permissões, auditoria (**entregue**)                  | UC01–UC04        | 1     |
-| 2    | Lote, alojamento, baixas, pesagem, sanidade e carência, entrada de ração, anexos (**entregue**)  | UC05–UC10        | 1     |
-| 4    | Curva de peso, indicadores, despesas com rateio, painel e filtros (**entregue**)                 | UC11–UC15        | 2     |
-| 5    | Alertas com fila e notificação; encerramento com cargas e carência (**entregue**)                | UC16, UC17       | 2     |
-| 6    | Equipamentos e manutenção (**entregue**)                                                         | UC18, UC19       | 3     |
-| 8    | Acabamento do web: visões salvas do painel, uso no celular pelo navegador, preparo para produção | UC15             | 3     |
-| 3    | App de campo offline (**adiada**)                                                                | UC06, UC07, UC10 | —     |
-| 7    | IoT: energia e temperatura, alerta por falta de sinal, SMS (**adiada**)                          | UC16 estendido   | —     |
+| Fase | Entrega                                                                                               | UCs              | Marco |
+| ---- | ----------------------------------------------------------------------------------------------------- | ---------------- | ----- |
+| 0    | Documentos desta pasta e esqueleto do repositório                                                     | —                | 1     |
+| 1    | Conta, fazenda, galpão, vínculo e convite, permissões, auditoria (**entregue**)                       | UC01–UC04        | 1     |
+| 2    | Lote, alojamento, baixas, pesagem, sanidade e carência, entrada de ração, anexos (**entregue**)       | UC05–UC10        | 1     |
+| 4    | Curva de peso, indicadores, despesas com rateio, painel e filtros (**entregue**)                      | UC11–UC15        | 2     |
+| 5    | Alertas com fila e notificação; encerramento com cargas e carência (**entregue**)                     | UC16, UC17       | 2     |
+| 6    | Equipamentos e manutenção (**entregue**)                                                              | UC18, UC19       | 3     |
+| 8    | Acabamento do web: visões salvas, uso no celular pelo navegador, preparo para produção (**entregue**) | UC15             | 3     |
+| 3    | App de campo offline (**adiada**)                                                                     | UC06, UC07, UC10 | —     |
+| 7    | IoT: energia e temperatura, alerta por falta de sinal, SMS (**adiada**)                               | UC16 estendido   | —     |
 
-Com o foco no web, a Fase 6 foi a próxima a ser feita, toda web; agora é a vez da 8. A Fase 8 (**Proposta**) junta o que
+Com o foco no web, as Fases 6 e 8 vieram depois da 5, ambas só web. A Fase 8 (**Proposta**) junta o que
 ainda falta para o web ser usado de verdade: as visões salvas do UC15, telas de lançamento
 (baixa, pesagem, ração) confortáveis no celular pelo navegador, para o operador no galpão
 enquanto o app offline não existe, e o preparo para produção (anexos em S3, envio de e-mail
@@ -111,11 +111,26 @@ fica para quando houver ambiente de produção.
 - Os custos das manutenções seguem a regra do financeiro: o Operador registra o custo, mas não
   o vê depois na listagem (doc 02, ponto 2).
 
+### Regras da Fase 8 que a equipe precisa confirmar (**Proposta**)
+
+- Visões salvas do painel (UC15) são **pessoais**: cada usuário vê só as suas, em cada fazenda.
+  Até 20 por usuário e fazenda; salvar com um nome que já existe substitui a visão. A visão
+  guarda os lotes e o período (até hoje, por idade ou por data). Lote que deixou de existir
+  ou de ser visível fica de fora ao aplicar, com aviso.
+- Uso no celular pelo navegador: em telas estreitas, os formulários ficam em uma coluna, com
+  campos e botões de pelo menos 44 px e teclado numérico nos campos de quantidade. A lista de
+  lotes ganha atalhos "+ Baixa", "+ Pesagem" e "+ Ração" para quem pode lançar. Na pesagem
+  individual, os pesos podem ser separados por vírgula, a tecla que o teclado numérico tem.
+- Produção (doc 07): anexos em S3 com criptografia, e-mail por SMTP autenticado, backup diário
+  com retenção de 14 dias e restauração testada, API que não sobe com configuração insegura.
+- Limite de 10 tentativas por minuto, por IP, nas rotas públicas de conta (login, cadastro,
+  confirmação de e-mail, convite); 300 por minuto nas demais.
+
 ## Fora do MVP
 
 Central de biosseguridade, compliance e rastreabilidade para exportação, benchmark de custo,
 postura, venda de cama, produtor integrado, app de campo offline e IoT com SMS (Fases 3 e 7,
-adiadas). As visões salvas do UC15 passaram para a Fase 8.
+adiadas).
 
 ## Destino das 11 inconsistências do documento do projeto
 

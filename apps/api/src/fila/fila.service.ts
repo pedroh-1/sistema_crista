@@ -53,8 +53,12 @@ export class FilaService implements OnApplicationBootstrap, OnModuleDestroy {
     );
   }
 
-  onModuleDestroy(): void {
+  /** No desligamento, espera (até 10 s) o lote de tarefas em andamento terminar. */
+  async onModuleDestroy(): Promise<void> {
     if (this.relogio) clearInterval(this.relogio);
+    const limite = Date.now() + 10_000;
+    while (this.ocupado && Date.now() < limite)
+      await new Promise((r) => setTimeout(r, 100));
   }
 
   /** Executa até `limite` tarefas disponíveis. Devolve quantas rodaram. */

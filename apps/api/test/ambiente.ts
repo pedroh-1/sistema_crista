@@ -18,3 +18,5 @@ process.env['ARMAZENAMENTO_DIR'] = join(tmpdir(), 'crista-testes-anexos');
 
 // A fila não roda sozinha nos testes: cada teste chama processarFila().
 process.env['FILA_WORKER'] = 'desligado';
+// Sem limite de requisições: cada arquivo cria várias contas do mesmo IP.
+process.env['LIMITE_REQUISICOES'] = 'desligado';

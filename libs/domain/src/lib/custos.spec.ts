@@ -2,6 +2,7 @@ import {
   despesaSchema,
   filtroPainelSchema,
   situacaoMeta,
+  visaoSalvaSchema,
   valorNaCurva,
 } from './custos';
 
@@ -88,5 +89,39 @@ describe('filtro do painel (UC15)', () => {
     expect(
       filtroPainelSchema.parse({ lotes: id, idadeAte: '21' }),
     ).toMatchObject({ lotes: [id], idadeAte: 21 });
+  });
+});
+
+describe('visão salva do painel (UC15)', () => {
+  const lote = '01990000-0000-7000-8000-000000000001';
+
+  it('guarda só o período do modo escolhido', () => {
+    const r = visaoSalvaSchema.parse({
+      nome: 'Lotes de inverno',
+      filtros: { lotes: [lote], modo: 'idade', idadeDe: 7, de: '2026-01-01' },
+    });
+    expect(r.filtros).toEqual({
+      lotes: [lote],
+      modo: 'idade',
+      idadeDe: 7,
+      idadeAte: undefined,
+    });
+  });
+
+  it('exige de 1 a 4 lotes e um nome', () => {
+    expect(
+      visaoSalvaSchema.safeParse({ nome: 'X', filtros: { lotes: [lote] } })
+        .success,
+    ).toBe(false);
+    expect(
+      visaoSalvaSchema.safeParse({ nome: 'Vazia', filtros: { lotes: [] } })
+        .success,
+    ).toBe(false);
+    expect(
+      visaoSalvaSchema.safeParse({
+        nome: 'Cinco',
+        filtros: { lotes: Array(5).fill(lote) },
+      }).success,
+    ).toBe(false);
   });
 });

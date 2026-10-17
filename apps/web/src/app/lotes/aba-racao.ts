@@ -59,6 +59,7 @@ const vazio = () => ({
             <input
               type="number"
               name="kg"
+              inputmode="decimal"
               min="0"
               step="0.001"
               [(ngModel)]="dados.quantidadeKg"
@@ -82,6 +83,7 @@ const vazio = () => ({
                 <input
                   type="number"
                   name="valor"
+                  inputmode="decimal"
                   min="0"
                   step="0.01"
                   [(ngModel)]="dados.valorTotal"

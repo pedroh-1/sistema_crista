@@ -159,3 +159,37 @@ export const filtroPainelSchema = z
     },
   );
 export type FiltroPainel = z.output<typeof filtroPainelSchema>;
+
+// ---------- Visões salvas do painel (UC15) ----------
+
+export const MAXIMO_VISOES = 20;
+export const MODOS_PERIODO = ['hoje', 'idade', 'data'] as const;
+
+/** Filtros do painel como o usuário montou, para reaplicar depois. */
+export const filtrosVisaoSchema = z
+  .object({
+    lotes: z
+      .array(z.uuid())
+      .min(1, 'Escolha ao menos um lote')
+      .max(MAXIMO_LOTES_COMPARACAO, 'Compare no máximo 4 lotes'),
+    modo: z.enum(MODOS_PERIODO).default('hoje'),
+    idadeDe: z.number().int().min(0).optional(),
+    idadeAte: z.number().int().min(0).optional(),
+    de: dataISO.optional(),
+    ate: dataISO.optional(),
+  })
+  // Guarda só o período do modo escolhido.
+  .transform((v) => ({
+    lotes: v.lotes,
+    modo: v.modo,
+    ...(v.modo === 'idade' && { idadeDe: v.idadeDe, idadeAte: v.idadeAte }),
+    ...(v.modo === 'data' && { de: v.de, ate: v.ate }),
+  }));
+export type FiltrosVisao = z.output<typeof filtrosVisaoSchema>;
+
+/** Salvar com um nome que já existe substitui a visão. */
+export const visaoSalvaSchema = z.object({
+  nome: texto(2, 60),
+  filtros: filtrosVisaoSchema,
+});
+export type NovaVisaoSalva = z.input<typeof visaoSalvaSchema>;

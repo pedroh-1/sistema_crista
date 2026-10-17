@@ -126,7 +126,7 @@ export class AnexosService {
       entidade: anexo.entidade as 'ocorrencia',
       idEntidade: anexo.idEntidade,
     });
-    return { anexo, conteudo: this.armazenamento.ler(anexo.chave) };
+    return { anexo, conteudo: await this.armazenamento.ler(anexo.chave) };
   }
 
   /** O registro precisa ser da fazenda e de um galpão permitido ao vínculo. */

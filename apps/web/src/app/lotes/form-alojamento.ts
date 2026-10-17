@@ -41,6 +41,7 @@ import { LoteAtual } from './lote-atual';
             <input
               type="number"
               name="recebidas"
+              inputmode="numeric"
               min="1"
               [(ngModel)]="dados.avesRecebidas"
             />
@@ -53,6 +54,7 @@ import { LoteAtual } from './lote-atual';
             <input
               type="number"
               name="mortas"
+              inputmode="numeric"
               min="0"
               [(ngModel)]="dados.mortasTransporte"
             />
